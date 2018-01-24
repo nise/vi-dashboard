@@ -30,9 +30,10 @@ module.exports = function (source, target) {
             if (err) {
                 res.send(err);
             }
-            var request = require('request')
-                , JSONStream = require('JSONStream')
-                , es = require('event-stream')
+            var request = require('request'), 
+                JSONStream = require('JSONStream'),
+                es = require('event-stream')
+                ;
 
             //request({ url: 'http://isaacs.couchone.com/registry/_all_docs' })
             var stream = fs.createReadStream(__dirname + '/../import_data/markov.json', {flags: 'r', encoding: 'utf-8'})

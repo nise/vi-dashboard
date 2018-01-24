@@ -14,6 +14,8 @@ bugs/todo:
 - a user session is only related with one video
 
 nice to have
+- accept other data formats as input
+- accept other output formats then Mongoose/MongoDB
 - add further historic data
 - negative playback_time and overlong videos should be treated better
 - render out put with some statistical measures about the modelled data
@@ -50,7 +52,7 @@ module.exports = function (sourceModel, targetModel, db) {
     const config = {
         group_offset: 0,
         user_offset: 0
-    }    
+    };
 
     // reset date to the beginning of the current day in order to align the hour offset
     static_start_date.setHours(2); // not clear why    
@@ -423,7 +425,7 @@ module.exports = function (sourceModel, targetModel, db) {
 
             }).then(function (results) {
                 //console.log('Finished aggregation of historic data');
-                console.log('[')
+                console.log('[');
                 results.histSessionPerVideo = {};
                 for (let z = 0, len = results.histSession.length; z < len; z++) {
                     results.histSessionPerVideo[results.histSession[z].video] = results.histSession[z].a; //utils.combineNested(results.histSession, 'a');
@@ -489,7 +491,7 @@ module.exports = function (sourceModel, targetModel, db) {
     function generateGroup(results, group_size, group_id) {
         for(var i = 0; i < group_size; i++) {
             generateUser(results, group_id, i + 1 + config.user_offset );
-        };
+        }
     }
 
 
@@ -542,7 +544,7 @@ module.exports = function (sourceModel, targetModel, db) {
                     //aaa.video_id = parseInt(video, 10);
 
                     // assign time
-                    let nextEntry = activities[n + 1]
+                    let nextEntry = activities[n + 1];
                     key = aaa.action_type + '--' + nextEntry.action_type;
                     let times = utils.randomWithProbability(results.timeDistribution[key]);
                     aaa.utc = parseInt(tmpUtc, 10) + parseInt(times[0], 10);
@@ -608,4 +610,4 @@ module.exports = function (sourceModel, targetModel, db) {
     }
 
     return module;
-}// end module
+};// end module
