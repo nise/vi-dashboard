@@ -1,0 +1,69 @@
+{
+    "navbar": {
+        "title": "VIANDA - Video Analytics Dashboard",
+        "user": "Seite Zwei",
+        "groups": "Seite Drei"
+    },
+    "group": {
+        "help": {
+            "overlapping_activity_time": {
+                "abs": "bam",
+                "rel": "bim"
+            }
+        },
+        "register": "Register"
+    },
+    "playback_peaks_chart":{
+        "help":{
+            "general": "This chart ..."
+        }
+    },
+    "user": {
+        "name": "FirstName LastName",
+        "email": "Email",
+        "birthdate": "Birthdate",
+        "address": "Address",
+        "password": "Password",
+        "title": "Your profile",
+        "save": "Save changes",
+        "groups": "My groups"
+    },
+    "register": {
+        "name": "FirstName LastName",
+        "email": "Email",
+        "birthdate": "Birthdate",
+        "address": "Address",
+        "password": "Password",
+        "title": "Please register...",
+        "register": "Register now"
+    },
+    "login": {
+        "title": "Login please...",
+        "submit": "login now",
+        "email": "Email",
+        "password": "Password"
+    },
+    "alluser": {
+        "title": "Overview of user"
+    },
+    "groups": {
+        "title": "Manage Groups",
+        "addGroup": "Add Group",
+        "submit": "Add now",
+        "name": "Group name",
+        "description": "Group description"
+    },
+    "groupdetails": {
+        "title": "Group details",
+        "name": "Group name",
+        "description": "Group description",
+        "save": "Save Changes",
+        "delete": "Delete Group",
+        "members": "Remove member",
+        "addmember": "Add member",
+        "addbtn": "Add now",
+        "usermail": "email address of user",
+        "join": "Join",
+        "memberreadonly": "Group member"
+    }
+}

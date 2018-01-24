@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<title>VIANDA - Video Analytics Dashboard</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	
+	<!-- Critical css -->
+	<style>html{font-family:sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}body{margin:0}a{background-color:transparent}button{margin:0;font:inherit;color:inherit}button{overflow:visible}button{text-transform:none}button{-webkit-appearance:button}button::-moz-focus-inner{padding:0;border:0}*{-webkit-box-sizing:border-box;-moz-box-sizing:border-box;box-sizing:border-box}:after,:before{-webkit-box-sizing:border-box;-moz-box-sizing:border-box;box-sizing:border-box}html{font-size:10px}body{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:14px;line-height:1.42857143;color:#333;background-color:#fff}button{font-family:inherit;font-size:inherit;line-height:inherit}a{color:#337ab7;text-decoration:none}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}h3{font-family:inherit;font-weight:500;line-height:1.1;color:inherit}h3{margin-top:20px;margin-bottom:10px}h3{font-size:24px}ul{margin-top:0;margin-bottom:10px}ul ul{margin-bottom:0}.container{padding-right:15px;padding-left:15px;margin-right:auto;margin-left:auto}@media (min-width:768px){.container{width:750px}}@media (min-width:992px){.container{width:970px}}@media (min-width:1200px){.container{width:1170px}}.col-sm-12{position:relative;min-height:1px;padding-right:15px;padding-left:15px}@media (min-width:768px){.col-sm-12{float:left}.col-sm-12{width:100%}}.collapse{display:none}.nav{padding-left:0;margin-bottom:0;list-style:none}.nav>li{position:relative;display:block}.nav>li>a{position:relative;display:block;padding:10px 15px}.navbar{position:relative;min-height:50px;margin-bottom:20px;border:1px solid transparent}@media (min-width:768px){.navbar{border-radius:4px}}@media (min-width:768px){.navbar-header{float:left}}.navbar-collapse{padding-right:15px;padding-left:15px;overflow-x:visible;-webkit-overflow-scrolling:touch;border-top:1px solid transparent;-webkit-box-shadow:inset 0 1px 0 rgba(255,255,255,.1);box-shadow:inset 0 1px 0 rgba(255,255,255,.1)}@media (min-width:768px){.navbar-collapse{width:auto;border-top:0;-webkit-box-shadow:none;box-shadow:none}.navbar-collapse.collapse{display:block!important;height:auto!important;padding-bottom:0;overflow:visible!important}}.container>.navbar-collapse{margin-right:-15px;margin-left:-15px}@media (min-width:768px){.container>.navbar-collapse{margin-right:0;margin-left:0}}.navbar-brand{float:left;height:50px;padding:15px 15px;font-size:18px;line-height:20px}.navbar-toggle{position:relative;float:right;padding:9px 10px;margin-top:8px;margin-right:15px;margin-bottom:8px;background-color:transparent;background-image:none;border:1px solid transparent;border-radius:4px}.navbar-toggle .icon-bar{display:block;width:22px;height:2px;border-radius:1px}.navbar-toggle .icon-bar+.icon-bar{margin-top:4px}@media (min-width:768px){.navbar-toggle{display:none}}.navbar-nav{margin:7.5px -15px}.navbar-nav>li>a{padding-top:10px;padding-bottom:10px;line-height:20px}@media (min-width:768px){.navbar-nav{float:left;margin:0}.navbar-nav>li{float:left}.navbar-nav>li>a{padding-top:15px;padding-bottom:15px}}.container:after,.container:before,.nav:after,.nav:before,.navbar-collapse:after,.navbar-collapse:before,.navbar-header:after,.navbar-header:before,.navbar:after,.navbar:before{display:table;content:" "}.container:after,.nav:after,.navbar-collapse:after,.navbar-header:after,.navbar:after{clear:both}@-ms-viewport{width:device-width}.visible-xs{display:none!important}@media (max-width:767px){.visible-xs{display:block!important}}</style>
+	<!--
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+		<link rel="stylesheet" type="text/css" href="/static/css/bootstrap/dist/css/bootstrap.min.css" />
+		<link rel="stylesheet" type="text/css" href="/static/css/dc.min.css" />
+		
+	-->
+	<link rel="manifest" href="manifest.json">
+	<link rel="stylesheet" type="text/css" href="/static/css/vi-dashboard.css" />
+
+<style>
+	.dc-chart .box text,.dc-chart g.axis text{-webkit-touch-callout:none;-khtml-user-select:none;pointer-events:none}.dc-chart path.dc-symbol,.dc-legend g.dc-legend-item.fadeout{fill-opacity:.5;stroke-opacity:.5}div.dc-chart{float:left}.dc-chart rect.bar{stroke:none;cursor:pointer}.dc-chart rect.bar:hover{fill-opacity:.5}.dc-chart rect.deselected{stroke:none;fill:#ccc}.dc-chart .pie-slice{fill:#fff;font-size:12px;cursor:pointer}.dc-chart .pie-slice.external{fill:#000}.dc-chart .pie-slice :hover,.dc-chart .pie-slice.highlight{fill-opacity:.8}.dc-chart .pie-path{fill:none;stroke-width:2px;stroke:#000;opacity:.4}.dc-chart .selected circle,.dc-chart .selected path{stroke-width:3;stroke:#ccc;fill-opacity:1}.dc-chart .deselected circle,.dc-chart .deselected path{stroke:none;fill-opacity:.5;fill:#ccc}.dc-chart .axis line,.dc-chart .axis path{fill:none;stroke:#000;shape-rendering:crispEdges}.dc-chart .axis text{font:10px sans-serif}.dc-chart .axis .grid-line,.dc-chart .axis .grid-line line,.dc-chart .grid-line,.dc-chart .grid-line line{fill:none;stroke:#ccc;opacity:.5;shape-rendering:crispEdges}.dc-chart .brush rect.background{z-index:-999}.dc-chart .brush rect.extent{fill:#4682b4;fill-opacity:.125}.dc-chart .brush .resize path{fill:#eee;stroke:#666}.dc-chart path.line{fill:none;stroke-width:1.5px}.dc-chart path.area{fill-opacity:.3;stroke:none}.dc-chart path.highlight{stroke-width:3;fill-opacity:1;stroke-opacity:1}.dc-chart g.state{cursor:pointer}.dc-chart g.state :hover{fill-opacity:.8}.dc-chart g.state path{stroke:#fff}.dc-chart g.deselected path{fill:grey}.dc-chart g.deselected text{display:none}.dc-chart g.row rect{fill-opacity:.8;cursor:pointer}.dc-chart g.row rect:hover{fill-opacity:.6}.dc-chart g.row text{fill:#fff;font-size:12px;cursor:pointer}.dc-chart g.dc-tooltip path{fill:none;stroke:grey;stroke-opacity:.8}.dc-chart g.county path{stroke:#fff;fill:none}.dc-chart g.debug rect{fill:#00f;fill-opacity:.2}.dc-chart g.axis text{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}.dc-chart .node{font-size:.7em;cursor:pointer}.dc-chart .node :hover{fill-opacity:.8}.dc-chart .bubble{stroke:none;fill-opacity:.6}.dc-chart .highlight{fill-opacity:1;stroke-opacity:1}.dc-chart .fadeout{fill-opacity:.2;stroke-opacity:.2}.dc-chart .box text{font:10px sans-serif;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}.dc-chart .box circle,.dc-chart .box line{fill:#fff}.dc-chart .box circle,.dc-chart .box line,.dc-chart .box rect{stroke:#000;stroke-width:1.5px}.dc-chart .box .center{stroke-dasharray:3,3}.dc-chart .box .outlier{fill:none;stroke:#ccc}.dc-chart .symbol,.dc-chart circle.dot{stroke:none}.dc-chart .box.deselected{opacity:.5}.dc-chart .box.deselected .box{fill:#ccc}.dc-chart .heatmap .box-group.deselected rect{stroke:none;fill-opacity:.5;fill:#ccc}.dc-chart .heatmap g.axis text{pointer-events:all;cursor:pointer}.dc-chart .empty-chart .pie-slice{cursor:default}.dc-chart .empty-chart .pie-slice path{fill:#fee;cursor:default}.dc-data-count{float:right;margin-top:15px;margin-right:15px}.dc-data-count .filter-count,.dc-data-count .total-count{color:#3182bd;font-weight:700}.dc-legend{font-size:11px}.dc-legend .dc-legend-item{cursor:pointer}.dc-hard .number-display{float:none}
+</style>
+
+<script>var cb = function() {
+		var l = document.createElement('link'); l.rel = 'stylesheet';
+		l.href = '/static/css/bootstrap/dist/css/bootstrap.min.css';
+		var h = document.getElementsByTagName('head')[0]; h.parentNode.insertBefore(l, h);
+		};
+		var raf = requestAnimationFrame || mozRequestAnimationFrame ||
+		webkitRequestAnimationFrame || msRequestAnimationFrame;
+		if (raf) raf(cb);
+		else window.addEventListener('load', cb);</script>
+	
+	
+
+	<script>
+		/*
+		$(".nav a").on("click", function () {
+			$(".nav").find(".active").removeClass("active");
+			$(this).parent().addClass("active");
+		});*/
+		/*
+		var render = function (template, remote, selector, json) {
+			if (json === undefined) { json = template; }
+			require(['text!../views/' + template + '.ejs', 'ejs'], function (thetemplate) {
+				if (remote) {
+					$.ajax({
+						type: "get",
+						beforeSend: function (xhr) {
+							if (xhr.overrideMimeType) {
+								xhr.overrideMimeType("application/json");
+							}
+						},
+						url: server + '/json/' + json,
+						dataType: 'json',
+						success: function (data) {   //alert( JSON.stringify(data))
+							var html = ejs.render(thetemplate, { items: data });
+							$(selector).html(html);
+
+						},
+						error: function (e) {
+							console.error('ERROR at ' + template + ':' + JSON.stringify(e));
+						}
+					});
+
+				} else {
+					var html = ejs.render(thetemplate, { items: 0 });
+					$(selector).html(html);
+				}
+			}); // end require
+		};	// end render
+		*/
+	</script>
+</head>
+
+<body>
+	<div class="navbar navbar col-sm-12" role="navigation">
+		<div class="navbar-header">
+			<button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".sidebar-navbar-collapse">
+		<span class="sr-only">Toggle navigation</span>
+		<span class="icon-bar"></span>
+		<span class="icon-bar"></span>
+		<span class="icon-bar"></span>
+		</button>
+			<span class="visible-xs navbar-brand">Sidebar menu</span>
+		</div>
+		<div class="container">
+			<div class="navbar-collapse collapse sidebar-navbar-collapse">
+				<h3 class="title"><a data-i18n="navbar.title" href="/chart/index">VIANDA - Video Analytics Dashboard</a></h3>
+				<ul class="nav navbar-nav">
+					<%- menu %>
+						<!--<li><a href="#">Reviews <span class="badge">1,118</span></a></li>-->
+				</ul>
+			</div>
+			<!--/.nav-collapse -->
+		</div>
+	</div><!-- end navbar -->
+	<div class="col-sm-12 main">

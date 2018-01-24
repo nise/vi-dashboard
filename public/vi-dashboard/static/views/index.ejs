@@ -1,0 +1,20 @@
+<% include layout %>
+
+	<% include scripts %>
+
+		<div class="container">
+			<h3>VIANDA</h3>
+			Number of data entries:
+			<%= data.logs %><br> Time:
+				<%= moment.utc(data.time.min).format("DD.MM.YYYY") %> -
+					<%= moment(data.time.max).format("DD.MM.YYYY") %> (
+						<%= moment.duration(data.time.range).humanize() %>)<br> Course phases:
+							<%= data.phases %><br> Active users:
+								<%= data.users %><br> Active groups:
+									<%= data.groups %><br> Used videos:
+										<%= data.videos %><br> Number of user sessions:
+											<%= data.sessions %><br>
+
+		</div>
+		
+		<% include footer %>

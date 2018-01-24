@@ -1,0 +1,60 @@
+{
+    "header": {
+        "home": "Start",
+        "user": "Profil",
+        "groups": "Gruppen",
+        "alluser": "Alle Nutzer"
+    },
+    "home": {
+        "title": "Willkommen",
+        "register": "Registrieren"
+    },
+    "user": {
+        "name": "Vorname Nachname",
+        "email": "Email",
+        "birthdate": "Geburtsdatum",
+        "address": "Adresse",
+        "password": "Passwort",
+        "title": "Dein Profil",
+        "save": "Änderungen speichern",
+        "groups": "Meine Gruppen"
+    },
+    "register": {
+        "name": "Vorname Nachname",
+        "email": "Email",
+        "birthdate": "Geburtsdatum",
+        "address": "Adresse",
+        "password": "Passwort",
+        "title": "Bitte registrieren...",
+        "register": "Jetzt registrieren"
+    },
+    "login": {
+        "title": "Bitte anmelden...",
+        "submit": "Jetzt anmelden",
+        "email": "Email",
+        "password": "Passwort"
+    },
+    "alluser": {
+        "title": "Übersicht der Nutzer"
+    },
+    "groups": {
+        "title": "Gruppen verwalten",
+        "addGroup": "Gruppe hinzufügen",
+        "submit": "Jetzt hinzufügen",
+        "name": "Name der Gruppe",
+        "description": "Gruppenbeschreibung"
+    },
+    "groupdetails": {
+        "title": "Gruppendetails",
+        "name": "Name der Gruppe",
+        "description": "Beschreibung der Gruppe",
+        "save": "Änderungen speichern",
+        "delete": "Gruppe löschen",
+        "members": "Mitglied entfernen",
+        "addmember": "Mitglied hinzufügen",
+        "addbtn": "Jetzt hinzufügen",
+        "usermail": "Email Adresse des Nutzers",
+        "join": "Beitreten",
+        "memberreadonly": "Gruppenmitglieder"
+    }
+}

@@ -1,0 +1,204 @@
+<% include layout %>
+
+	<div class="container" id="chartCordtra">
+		<div class="col-md-9 main-chart">
+			<div class="">
+				<h3>CORDTRA diagram</h3>
+				<hr>
+				<div id="mainChart"></div>
+				<div id="help" class="help">
+					<h4><span class="glyphicon glyphicon-question-sign"></span> Help</h4>
+					<div data-i18n="cordtra.help.main"></div>
+				</div>
+			</div>
+		</div>
+
+		<div class="filter-area col-md-3">
+			<h4>FILTER <a class="filter-reset" href="javascript:observer.resetCharts();">reset</a></h4>
+			<div class="">
+				<h5>Groups</h5>
+				<div id="group-chart"></div>
+			</div>
+			<div class="">
+				<h5>Interaction Context</h5>
+				<div id="context-chart"></div>
+			</div>
+			<div class="">
+				<h5>Course Phases</h5>
+				<div id="chart-ring-phase"></div>
+			</div>
+		</div>
+	</div>
+	
+	<% include scripts %>
+
+	<script>
+		const t0 = performance.now();
+		//dc.constants.EVENT_DELAY = 0;
+
+		var observer = new Observer();
+
+		const group_keys = <%-JSON.stringify(groups, null, '\t') %>;
+		const context_keys = <%-JSON.stringify(context, null, '\t') %>;//['assessment','comments','hyperlinks','playbackSpeed','player','skipBack','toc'];
+		const type_keys = <%-JSON.stringify(type, null, '\t') %>;
+		const color_range = ['yellow', 'blue', 'purple', 'red', 'orange', 'green', 'black'];
+		const filterChartHeight = 130;
+		const filterSingleColors = d3.scale.ordinal().domain([0]).range(['#e6550d']);
+		const filterMultiColors = d3.scale.ordinal().domain(context_keys).range(color_range);
+		const obj = {};
+
+		obj.dim = { first: 'g', second: 'c', third: 't' };
+		obj.keys = { first: group_keys, second: context_keys, third: type_keys };
+		obj.labels = { first: 'Group', second: '', third: '' };
+		obj.filters = [];
+		obj.filters.push({ chartType: 'rowChart', selector: "#context-chart", indepVar: 'c', depVar: 's', keys: context_keys, colors: filterMultiColors });
+		obj.filters.push({ chartType: 'rowChart', selector: "#group-chart", indepVar: 'g', depVar: 's', keys: group_keys });
+		obj.filters.push({ chartType: 'pieChart', selector: "#chart-ring-phase", indepVar: 'p', depVar: 's', keys: [] });
+
+		//pivotDimensions(obj, 'first', 'second');
+		loadData(obj);
+
+		/*
+		 *
+		 **/
+		function loadData(obj) {
+			d3.json("/data/cordtra/group/all/user/all", function (error, result) {
+				data = result.data;
+				const t1 = performance.now();
+
+				// prepare data		
+				var dateTimeFormat = d3.time.format('%Y-%m-%d');
+				data.forEach(function (d) { //alert(JSON.stringify(d))
+					d.date = dateTimeFormat.parse(d.d);  //alert( obj.keys.first+'---'+d[obj.dim.first] )
+					d[obj.dim.first] = +obj.keys.first.indexOf(d[obj.dim.first]) / 30;
+					
+				});
+
+				var
+					ndx = crossfilter(data),
+					mainDimension = ndx.dimension(function (d) { return [+d.date, d[obj.dim.first], d[obj.dim.second], d[obj.dim.third]]; }),
+					mainGroup = mainDimension.group().reduce(
+						/* callback for when data is added to the current filter results */
+						function (p, v) {
+							//alert(JSON.stringify(v))
+							++p.count;
+							p.date = v.date;
+							p.s = v.s;
+							p[obj.dim.first] = v[obj.dim.first];
+							p[obj.dim.second] = v[obj.dim.second];
+
+							//p.p = v.p;
+
+							return p;
+						},
+						/* callback for when data is removed from the current filter results */
+						function (p, v) {
+							--p.count;
+							p.date = v.date;
+							p.s = 0;
+							p[obj.dim.second] = p[obj.dim.second];
+							p[obj.dim.first] = p[obj.dim.first];
+							p[obj.dim.third] = v[obj.dim.third];
+							//p.p = 0;
+
+							return p;
+						},
+						// init filter 
+						function () {
+							return { count: 0, date: 0, g: 0, c: '', p: '', t: '', label: "" };
+						});
+
+				var
+					xRange = [
+						d3.min(mainGroup.all(), function (d) { return d.value.date; }),
+						d3.max(mainGroup.all(), function (d) { return d.value.date; })
+					],
+					yRange = [
+						d3.min(mainGroup.all(), function (d) { return d.value[obj.dim.first] - d.value.s * 2; }),
+						d3.max(mainGroup.all(), function (d) { return d.value[obj.dim.first] + d.value.s; })
+					];
+
+
+				// main chart 
+				var mainChart = dc.bubbleChart("#mainChart");
+				observer.register(mainChart);
+				var bam = 1;//mainChart.height() / obj.keys.first.length / yRange[1] / 100;
+				//alert(bam)
+				var width = (800 - 90); 
+				mainChart
+					//.width(width)
+					.height(350)
+					.margins({ top: 50, right: 30, bottom: 30, left: 60 })
+					.x(d3.time.scale().range(xRange))//.round(d3.time.week.round)
+					.y(d3.scale.linear().range(yRange))
+					.brushOn(true)
+					.colorAccessor(function (kv) { return kv.value[obj.dim.second]; })
+					.colors(d3.scale.ordinal().domain(obj.keys.second).range(color_range))
+					.clipPadding(65)
+					//.yAxisLabel("Groups")
+					.xAxisLabel("Date")
+					.dimension(mainDimension)
+					.group(mainGroup)
+					.elasticX(true)
+					.elasticY(true)
+					.renderLabel(false)
+					.minRadius(1)
+					.maxBubbleRelativeSize( bam )
+					.keyAccessor(function (p) {
+						return p.value.date;
+					})
+					.valueAccessor(function (p) {
+						return p.value[obj.dim.first];
+					})
+					.radiusValueAccessor(function (p) {
+						return p.value.s;
+					})
+					.title(function (p) {
+						return [
+							"Date: " + formatTime(p.value.date),
+							"Group: " + p.value[obj.dim.first],
+							"Context: " + p.value[obj.dim.second],
+							"Type: " + p.value[obj.dim.third],
+							"Actions: " + p.value.s,
+						].join("\n")
+					})
+					;
+
+				// axis
+				var formatTime = d3.time.format("%d/%m/%y"),
+					formatMinutes = function (d) {
+						return formatTime(new Date(d));
+					};
+
+				mainChart.xAxis()
+					.ticks(7)
+					.tickFormat(formatMinutes)
+					;
+				mainChart.yAxis()
+					.ticks(obj.keys.first.length)
+					.tickFormat(function (d) { return obj.labels.first + ' ' + obj.keys.first[d]; });;
+
+
+				// add filter charts: chartType, selector, indepVar, depVar, colors, margins
+				for (var i = 0, len = obj.filters.length; i < len; i++) {
+					addFilterChart(obj.filters[i], ndx);
+				}
+
+				dc.renderAll();
+
+				// measure and send performance data
+				result.metrics.pageload = t1 - t0;
+				result.metrics.d3rendering = performance.now() - t1;
+				res.metrics.browser = navigator.userAgent.split(' ')[navigator.userAgent.split(' ').length-1].split('/')[0];
+				$.ajax({
+					type: "POST",
+					url: '/log/metrics',
+					data: result.metrics,
+					dataType: 'json'
+				});
+			}); //end json
+
+		} // end load data
+	</script>
+
+	<% include footer %>

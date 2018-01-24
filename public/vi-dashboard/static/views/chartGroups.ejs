@@ -1,0 +1,314 @@
+<% var embed=0; if( embed === 0 ){ %>
+    <% include layout %>
+        <% }else{ %>
+            <% include embed %>
+                <% } %>
+
+                    <div class="container" id="mainGroup">
+                        <div class="col-md-9 main-chart">
+                            <h3>Group comparison</h3>
+                            <hr>
+                            <div id="groupCompChart">
+                                <div class="group" id="group_playback">
+                                    <h4>Playback</h4>
+                                    <div class="row plot-area" id="playback"></div>
+                                </div>
+                                <hr>
+                                <div class="group" id="group_interactions">
+                                    <h4>Video interactions</h4>
+                                    <div class="row plot-area" id="interactions"></div>
+                                </div>
+                                <hr>
+                                <div class="group" id="group_collaboration">
+                                    <h4>Group interactions</h4>
+                                    <div class="row plot-area" id="collaboration"></div>
+                                </div>
+                                <hr>
+                                <div class="group" id="group_annotations">
+                                    <h4>Video annotations</h4>
+                                    <div class="row plot-area" id="annotations"></div>
+                                </div>
+                                <hr>
+                                <div class="group" id="group_annotations_assessment">
+                                    <h4>Video annotations > Video Assessment</h4>
+                                    <div class="row plot-area" id="annotations_assessment"></div>
+                                </div>
+                                <hr>
+                                <div class="group" id="group_annotations_comments">
+                                    <h4>Video annotations > Comments</h4>
+                                    <div class="row plot-area" id="annotations_comments"></div>
+                                </div>
+                                <hr>
+                                <div class="group" id="group_annotations_toc">
+                                    <h4>Video annotations > Chapter Marks</h4>
+                                    <div class="row plot-area" id="annotations_toc"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="filter-area col-md-3">
+                            <h4>FILTER</h4>
+                            <div class="">
+                                <h5>Scope</h5>
+                                <select id="scope">
+                        <option value='abs'>Absolute group average</option>
+                        <option value='rel'>Relative group average</option>
+                        <!--<option value='dev'>Standard deviation </option>
+                        <option value='n'>Involved group members</option>-->
+                        <option value='min'>Group minimum </option>
+                        <option value='max'>Group maximum</option>
+                    </select>
+
+                            </div>
+                            <div class="">
+                                <h5>Groups</h5>
+                                <div id="chart-row-spenders"></div>
+                            </div>
+                            <div class="">
+                                <h5>Course Phases</h5>
+                                <div id="chart-ring-phase"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <% include scripts %>
+
+                        <script>
+                            const t0 = performance.now();
+                            var
+                                category_mapping = {
+                                    'playback': { cat: 'playback', title: 'Playback', unit: 'min' },
+                                    'total_activities': { cat: 'interactions', title: 'Total Activities', unit: 'clicks' },
+                                    'annotations_created': { cat: 'annotations', title: 'Number of created annotations' },
+                                    'annotations_edited': { cat: 'annotations', title: 'Number of edited annotations' },
+                                    'annotations_used': { cat: 'annotations', title: 'Number of used annotations' },
+                                    'user_contributions': { cat: 'interactions', title: 'Number of user contributions' },
+                                    'equal_activities': { cat: 'collaboration', title: 'Equal Participation', unit: 'events' },
+                                    'overlapping_activity_time': { cat: 'collaboration', title: 'Overlapping Activities', unit: 's' },
+                                    'annotations_assessment_created': { cat: 'annotations_assessment', title: 'Number of created quizzes' },
+                                    'annotations_assessment_edited': { cat: 'annotations_assessment', title: 'Number of edited quizzes' },
+                                    'annotations_assessment_used': { cat: 'annotations_assessment', title: 'Number of used quizzes' },
+                                    'annotations_toc_created': { cat: 'annotations_toc', title: 'Number of created marks' },
+                                    'annotations_toc_edited': { cat: 'annotations_toc', title: 'Number of edited marks' },
+                                    'annotations_toc_used': { cat: 'annotations_toc', title: 'Number of performed marks' },
+                                    'annotations_comments_created': { cat: 'annotations_comments', title: 'Number of created comments' },
+                                    'annotations_comments_edited': { cat: 'annotations_comments', title: 'Number of edited comments' },
+                                    'annotations_comments_used': { cat: 'annotations_comments', title: 'Number of accesses comments' }
+                                },
+                                scope = 'abs', // rel | abs
+                                this_data = {}
+                                ;
+
+                            d3.json('/data/groups', function (err, data) {
+                                the_data = data.data;
+                                const t1 = performance.now();
+                                plot(scope);
+                                data.metrics.pageload = t1 - t0;
+                                data.metrics.d3rendering = performance.now() - t1;
+                                res.metrics.browser = navigator.userAgent.split(' ')[navigator.userAgent.split(' ').length - 1].split('/')[0];
+                                $.ajax({
+                                    type: "POST",
+                                    url: '/log/metrics',
+                                    data: data.metrics,
+                                    dataType: 'json'
+                                });
+
+                            });
+
+                            $('#scope').on('change', function (e) {
+                                $('.plot-area').empty();
+                                plot($(this).val());
+                            });
+
+                            /**
+                             *
+                             */
+                            function plot(scope) {
+                                var i = 0;
+                                for (var variable in the_data) {
+                                    if (the_data.hasOwnProperty(variable)) {
+                                        i++;
+                                        data = the_data[variable];
+                                        if (data.length !== 0) {
+                                            var el = document.createElement('div');
+                                            el.classList.add('col-md-3');
+                                            el.setAttribute("id", 'variable' + i);
+                                            parent = document.getElementById(category_mapping[variable].cat);
+                                            parent.appendChild(el);
+
+                                            //sort bars based on value xxx could performed in the aggregation pipeline on server
+                                            data = data.sort(function (a, b) {
+                                                return d3.ascending(a.group, b.group);
+                                            })
+
+                                            //set up svg using margin conventions - we'll need plenty of room on the left for labels
+                                            var margin = {
+                                                top: 20,
+                                                right: 50,
+                                                bottom: 15,
+                                                left: 70
+                                            };
+
+                                            var width = 200 - margin.left - margin.right,
+                                                height = 130 - margin.top - margin.bottom;
+
+                                            var svg = d3.select("#variable" + i).append("svg")
+                                                .attr("width", width + margin.left + margin.right)
+                                                .attr("height", height + margin.top + margin.bottom)
+                                                .append("g")
+                                                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+                                            var x = d3.scale.linear()
+                                                .range([0, width])
+                                                .domain([0, d3.max(data, function (d) {
+                                                    return d[scope];
+                                                })]);
+
+                                            var y = d3.scale.ordinal()
+                                                .rangeRoundBands([height, 0], .1)
+                                                .domain(data.map(function (d) {
+                                                    return [d.group, d.n];
+                                                }))
+                                                ;
+
+                                            //make y axis to show bar names
+                                            var yAxis = d3.svg.axis()
+                                                .scale(y)
+                                                .tickSize(0)
+                                                .orient("left")
+                                                .tickFormat(function (d) {
+                                                    if (d[1]) {
+                                                        return d[0] + ' (' + d[1] + ')';
+                                                    } else {
+                                                        return d[0];
+                                                    }
+                                                });
+
+                                            var gy = svg.append("g")
+                                                .attr("class", "y axis")
+                                                .call(yAxis)
+
+                                            // Tooltip
+                                            var tip = d3.tip()
+                                                .attr('class', 'd3-tip')
+                                                .direction('se')
+                                                .offset([-10, 20])
+                                                .html(function (d) {
+                                                    var arr = [
+                                                        "Group: " + d.group,
+                                                        "Involved group members: " + d.n
+                                                    ]
+                                                    if (d.avg && d.dev) {
+                                                        arr.push("Absolute average: " + d.avg.toFixed(1) + " " + category_mapping[variable].unit);
+                                                        arr.push("Standard deviation: " + d.dev.toFixed(1));
+                                                    }
+                                                    arr = arr.concat([
+                                                        "Relative average: " + d.rel.toFixed(1),
+                                                        "Group maximum: " + d.max,
+                                                        "Group minimum: " + d.min
+                                                    ]);
+                                                    return arr.join('<br>');
+                                                });
+                                            svg.call(tip);
+
+                                            var bars = svg.selectAll(".bar")
+                                                .data(data)
+                                                .enter()
+                                                .append("g")
+                                                ;
+
+                                            bars.append("rect")
+                                                .attr("class", "bar main-chart-color")
+                                                .attr("y", function (d) { //alert(JSON.stringify(d))
+                                                    return y([d.group, d.n]);
+                                                })
+                                                .attr("height", y.rangeBand())
+                                                .attr("x", 0)
+                                                .attr("width", function (d) {
+                                                    return x(d[scope]);
+                                                })
+                                                .on('mouseover', tip.show)
+                                                .on('mouseout', tip.hide)
+                                                ;
+
+                                            //add a value label to the right of each bar
+                                            bars.append("text")
+                                                .attr("class", "label")
+                                                .attr("y", function (d) {
+                                                    return y([d.group, d.n]) + y.rangeBand() / 2 + 4;
+                                                })
+                                                .attr("x", function (d) {
+                                                    return x(d[scope]) + 3;
+                                                })
+                                                .text(function (d) {
+                                                    return scope === 'rel' ? (d[scope] * 100).toFixed(1) + '%' : d[scope].toFixed(0);
+                                                });
+
+                                            // Error Bars
+                                            if (['abs', 'rel'].indexOf(scope) > -1) {
+                                                bars.append("rect")
+                                                    .attr("class", "err-bar highlight-chart-color")
+                                                    .attr("y", function (d) {
+                                                        return y([d.group, d.n]) + (y.rangeBand() / 2);
+                                                    })
+                                                    .attr("height", 2)
+                                                    .attr("x", function (d) {
+                                                        if (scope === 'abs') {
+                                                            return x(d[scope] - ((d.dev / Math.sqrt(d.n)) / 2));
+                                                        } else {
+                                                            return x((d[scope] - ((d.dev / Math.sqrt(d.n) / 100) / 2)));
+                                                        }
+                                                    })
+                                                    .attr("width", function (d) {
+                                                        if (scope === 'abs') {
+                                                            return x(d.dev / Math.sqrt(d.n));
+                                                        } else {
+                                                            return x((d.dev / Math.sqrt(d.n) / 100));
+                                                        }
+                                                        return 0;
+                                                    });
+                                            }
+
+                                            // Help
+                                            var help_tip = d3.tip()
+                                                .attr('class', 'd3-tip')
+                                                .direction('n')
+                                                .offset([0, 0])
+                                                .html(function (d) { //alert('group.help.'+ variable +'.'+ scope)
+                                                    return '<span class="help-tooltip">' + i18next.t('group.help.' + variable + '.' + scope) + '</span>';
+                                                });
+                                            svg.call(help_tip);
+
+                                            // Title
+                                            var unit = '';
+                                            if (scope === 'abs' && category_mapping[variable].unit !== undefined) {
+                                                unit = ' (' + category_mapping[variable].unit + ')';
+                                            }
+                                            svg.append("text")
+                                                .attr("x", (width / 2))
+                                                .attr("y", 5 - (margin.top / 2))
+                                                .attr("text-anchor", "middle")
+                                                .attr("class", "chart-title small")
+                                                .text(category_mapping[variable].title + unit)
+                                                .on('mouseover', help_tip.show)
+                                                .on('mouseout', help_tip.hide)
+                                                ;
+
+                                            /*var g = svg.append("g");
+                                            var img = g.append("svg:image")
+                                                .attr("xlink:href", "http://www.clker.com/cliparts/1/4/5/a/1331068897296558865Sitting%20Racoon.svg")
+                                                .attr("width", 20)
+                                                .attr("height", 20)
+                                                .attr("x", width+20)
+                                                .attr("y", height);
+                                            ;*/
+                                        } else {
+                                            $('#group_' + category_mapping[variable].cat).remove();
+                                        }// end if empty data
+                                    }// end if hasOwnProperty
+                                }// end for
+                            }//end
+                        </script>
+
+
+                        <% include footer %>

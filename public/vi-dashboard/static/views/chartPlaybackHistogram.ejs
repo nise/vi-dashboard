@@ -1,0 +1,253 @@
+<% include layout %>
+
+    <div id="chartFB">
+        <div class="main-chart col-md-9">
+            <h3>Histograms of interaction</h3>
+            <hr>
+            <div id="chartPlaybackHist" class="row histCharts"></div>
+            <div id="chartPlaybackHistPlay" class="row histCharts"></div>
+            <div id="chartPlaybackHistSeek" class="row histCharts"></div>
+        </div>
+        <div class="filter-area col-md-3">
+            <h4>FILTER <a class="filter-reset" id="reset_btn" href="#">reset</a></h4>
+            <div class="">
+                <h5>Groups</h5>
+                <div id="group-select"></div>
+            </div>
+            <div class="" hidden>
+                <h5>Interaction Context</h5>
+                <div id="context-chart"></div>
+            </div>
+            <div class="">
+                <h5>Video files</h5>
+                <div id="video-select"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <% include scripts %>
+
+        <script>
+            const t0 = performance.now();
+            var observer = new Observer();
+
+            const file_keys = <%-JSON.stringify(file, null, '\t') %>;
+            const type_keys = <%-JSON.stringify(type, null, '\t') %>;
+            const group_keys = <%-JSON.stringify(groups, null, '\t') %>;
+            const color_range = ['yellow', 'blue', 'purple', 'red', 'orange', 'green', 'black'];
+            const filterChartHeight = 150;
+            //const filterSingleColors = d3.scale.ordinal().domain([0]).range(['#e6550d']);
+            //const filterMultiColors = d3.scale.ordinal().domain(context_keys).range(color_range);
+
+            var
+                lastSelected = {},
+                obj = {}
+                ;
+            obj.dim = { first: 0, second: 1, third: 2 };
+            obj.keys = { first: null, second: null, third: null };
+            obj.labels = { first: 'Forward moves', second: 'Backward moves', third: 'Context' };
+            obj.filters = [];
+
+            // init filters, dim, type, items, selector, ylabel, labels
+            select_filter({ dim: 'video', type: 'checkbox', items: file_keys, selector: '#video-select' }, true);
+            select_filter({ dim: 'group', type: 'checkbox', items: group_keys, selector: '#group-select' }, true);
+            //select_filter({ dim: 'phase', type: 'checkbox', items: group_keys, selector: '#group-select' });
+            loadData(obj, { video: file_keys, group: group_keys });
+
+            $('#reset_btn').click(function () {
+                select_filter({ dim: 'video', type: 'checkbox', items: file_keys, selector: '#video-select' }, true);
+                select_filter({ dim: 'group', type: 'checkbox', items: group_keys, selector: '#group-select' }, true);
+                loadData(obj, { video: file_keys, group: group_keys });
+            })
+
+            /**
+             * 
+             */
+            function loadData(obj, filter) {
+                $('.histCharts').each(function (i, val) { $(this).empty() });
+                // Set the dimensions of the canvas / graph
+                var margin = { top: 50, right: 30, bottom: 30, left: 30 };
+
+                // Colors
+                var cValue = function (d) { return d.c; },
+                    color = d3.scale.category10();
+                // Get the data
+                d3.json("/data/playback-histogram/videos/" + filter['video'] + "/groups/" + filter['group'], function (error, res) {
+                    const t1 = performance.now();
+                    // iterate chart data
+                    if (res !== undefined) {
+                        var i = -1;
+                        for (var jj in res.data) {
+                            if (res.data.hasOwnProperty(jj)) {
+                                i++;
+
+                                var div = $('<div></div>')
+                                    .attr('id', 'user' + i)
+                                    .addClass('col-md-4 rowchart');
+                                $('#' + res.meta[jj].parent).append(div);
+                                ////////////////////////////////
+                                var values = [];
+                                res.data[jj].forEach(function (d) { //alert(JSON.stringify(d))
+                                    if (d.duration > 0 &&  filter.group.indexOf(d.group) !== -1 &&  filter.video.indexOf(d.video) !== -1){
+                                        values.push(+d.duration);
+                                    }
+                                });
+                                if (values.length === 0) {
+                                    i--; continue;
+                                }
+                                var
+                                    max = d3.max(values),
+                                    min = d3.min(values),
+                                    bins = Math.ceil(Math.log2(values.length)), // considering Sturges' formula
+                                    color = "steelblue",
+                                    width = $("#user" + i).width() - margin.left - margin.right,
+                                    height = $("#user" + i).width() * 0.75 - margin.top - margin.bottom,
+                                    formatCount = d3.format(",.0f"),
+                                    formatTime = d3.time.format("%H"),
+                                    formatMinutes = function (d) { return formatTime(new Date(2012, 0, 1, Math.floor(d), 0, 0)); };
+
+                                var x = d3.scale.linear()
+                                    .domain([min, max])
+                                    .range([0, width]);
+                                var data = d3.layout.histogram()
+                                    .bins(x.ticks(bins))
+                                    (values);
+
+                                var yMax = d3.max(data, function (d) { return d.length });
+                                var yMin = d3.min(data, function (d) { return d.length });
+                                var colorScale = d3.scale.linear()
+                                    .domain([yMin, yMax])
+                                    //.range([d3.rgb(color).brighter(), d3.rgb(color).darker()])
+                                    ;
+                                // Set the ranges
+
+                                var y = d3.scale.linear()
+                                    .domain([0, yMax])
+                                    .range([height, 0]);
+
+                                // Define the axes
+                                var xAxis = d3.svg.axis().scale(x)
+                                    .orient("bottom").ticks(6);//.tickFormat(formatMinutes);;
+
+                                var yAxis = d3.svg.axis().scale(y)
+                                    .orient("left").ticks(4);
+                                // Generate a histogram using twenty uniformly-spaced bins.
+
+
+                                var svg = d3
+                                    .select("#user" + i)
+                                    .append("svg")
+                                    .attr("width", width + margin.left + margin.right)
+                                    .attr("height", height + margin.top + margin.bottom)
+                                    .append("g")
+                                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+                                var bar = svg.selectAll(".bar")
+                                    .data(data)
+                                    .enter().append("g")
+                                    .attr("class", "bar")
+                                    .attr("transform", function (d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; });
+
+                                bar.append("rect")
+                                    .attr("x", 1)
+                                    .attr("width", (x(data[0].dx) - x(0)) - 1)
+                                    .attr("height", function (d) { return height - y(d.y); })
+                                    .attr("class", "main-chart-color");
+
+                                svg.append("g")
+                                    .attr("class", "x axis")
+                                    .attr("transform", "translate(0," + height + ")")
+                                    .call(xAxis);
+
+                                bar.append("text")
+                                    .attr("dy", ".75em")
+                                    .attr("y", -12)
+                                    .attr("x", (x(data[0].dx) - x(0)) / 2)
+                                    .attr("text-anchor", "middle")
+                                    .text(function (d) { if (d.y > 0) { return formatCount(d.y); } });
+
+                                svg.append("g")
+                                    .attr("class", "x axis")
+                                    .attr("transform", "translate(0," + height + ")")
+                                    .call(xAxis);
+
+                                // Title
+                                svg.append("text")
+                                    .attr("x", (width / 2))
+                                    .attr("y", -10 - (margin.top / 4))
+                                    .attr("text-anchor", "middle")
+                                    .attr("class", "chart-title")
+                                    .text(res.meta[jj].title);
+
+                                /*
+                                    // Legend
+                                var stats = new gauss.Vector(values);
+                                svg.append("text")
+                                    .attr("x", (width))
+                                    .attr("y", -10)
+                                    .attr("text-anchor", "end")
+                                    .attr('class', 'id')
+                                    .attr("class","legend")
+                                    .append('svg:tspan')
+                                    .attr('x', width)
+                                    .attr('dy', 12)
+                                    .attr("text-anchor", "end")
+                                    .attr("class","legend")
+                                    .text('n: '+values.length)
+                                    .append('svg:tspan')
+                                    .attr('x', width)
+                                    .attr('dy', 12)
+                                    .attr("text-anchor", "end")
+                                    .attr("class","legend")
+                                    .text('sum: '+stats.sum().toFixed(2) + ' '+res.meta[jj].x_unit)
+                                    .append('svg:tspan')
+                                    .attr('x', width)
+                                    .attr('dy', 12)
+                                    .attr("text-anchor", "end")
+                                    .attr("class","legend")
+                                    .text('median: '+stats.median().toFixed(2) + ' '+res.meta[jj].x_unit)
+                                    .append('svg:tspan')
+                                    .attr('x', width)
+                                    .attr('dy', 12)
+                                    .attr("text-anchor", "end")
+                                    .attr("class","legend")
+                                    .text('mean: '+stats.mean().toFixed(2) + ' '+res.meta[jj].x_unit)
+                                    .append('svg:tspan')
+                                    .attr('x', width)
+                                    .attr('dy', 12)
+                                    .attr("text-anchor", "end")
+                                    .attr("class","legend")
+                                    .text('max: '+stats.max().toFixed(2) + ' '+res.meta[jj].x_unit)
+                                    
+                                    ;
+                                    */
+
+                                // Axis label
+                                svg.append("text") // y
+                                    .attr("text-anchor", "middle")  // this makes it easy to centre the text as the transform is applied to the anchor
+                                    .attr("transform", "translate(" + (10) + "," + (height / 2) + ")rotate(-90)")  // text is drawn off the screen top left, move down and out and rotate
+                                    .text("Frequency");
+
+                                svg.append("text") // x
+                                    .attr("text-anchor", "middle")  // this makes it easy to centre the text as the transform is applied to the anchor
+                                    .attr("transform", "translate(" + (width / 2) + "," + (height + margin.bottom) + ")")  // centre below axis
+                                    .text(res.meta[jj].x_dimension + ' (' + res.meta[jj].x_unit + ')');
+                            }
+                        }
+
+                        res.metrics.pageload = t1 - t0;
+                        res.metrics.d3rendering = performance.now() - t1;
+                        res.metrics.browser = navigator.userAgent.split(' ')[navigator.userAgent.split(' ').length - 1].split('/')[0];
+                        $.ajax({
+                            type: "POST",
+                            url: '/log/metrics',
+                            data: res.metrics,
+                            dataType: 'json'
+                        });
+                    }
+                });
+            } // end load data
+        </script>
+
+        <% include footer %>

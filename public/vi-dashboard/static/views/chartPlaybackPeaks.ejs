@@ -1,0 +1,381 @@
+<% include layout %>
+
+  <div class="container" id="chartPeaks">
+    <div class="main-chart col-md-9">
+      <h3 class="title">Playback peaks <span class="note"></span></h3>
+      <hr>
+      <div id="mainPeakChart"></div>
+      <div id="mainSpeedChart"></div>
+      <div id="help" class="help">
+        <h4><span class="glyphicon glyphicon-question-sign"></span> Help</h4>
+        <div data-i18n="playback_peaks_chart.help.general"></div>
+      </div>
+    </div>
+
+    <div class="filter-area col-md-3">
+      <h4>FILTER</h4>
+      <div class="">
+        <h5>Groups</h5>
+        <div id="group-select"></div>
+      </div>
+      <div class="">
+        <h5>Videos</h5>
+        <div id="video-select"></div>
+      </div>
+      <div class="">
+        <h5>Scope</h5>
+        <div id="scope-select"></div>
+      </div>
+    </div>
+  </div>
+
+  <% include scripts %>
+
+    <script>
+      const t0 = performance.now();
+      var
+        videos = <%-JSON.stringify(videos, null, '\t') %>,
+        groups = <%-JSON.stringify(groups, null, '\t') %>,
+        lastSelected = {},
+        obj = {}
+        ;
+
+      // init filters
+      select_filter({ dim: 'video', type: 'radio', items: videos, selector: '#video-select' });
+      select_filter({ dim: 'group', type: 'checkbox', items: groups, selector: '#group-select' });
+      select_filter({ dim: 'scope', type: 'radio', items: ['total', 'user', 'user-relative', 'group'], labels: ['total', 'absolute number of users', 'relative number of users', 'group'], selector: '#scope-select', ylabel: ['views', 'number of users who watched the segment', 'portion of users who watched the segment', 'number of groups who watched the segment', 'portion of groups who watched the segment'] });
+
+
+      // charts
+      var
+        margin = { top: 10, left: 20, bottom: 30, right: 35 },
+        width = ( $('#mainPeakChart').width() - margin.left - margin.right),//920,
+        height = 350,
+        height2 = 30
+        ;
+
+      var ricker = d3_peaks.ricker;
+      var findPeaks = d3_peaks.findPeaks()
+        .kernel(ricker)
+        .gapThreshold(1)
+        .minLineLength(4)
+        .minSNR(2.0)
+        .widths([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+
+      // #testing=true,scope=group ('total', 'user', 'user-relative', 'group')
+      var hash = window.location.hash.split[',']
+      if (hash !== undefined && hash[0] === 'testing=true') {
+        var scope = hash[1].split('=')[0] === 'scope' ? hash[1].split('=')[1] : 'total';
+        loadData(obj, { scope: scope, video: videos.join(',') });
+      } else {
+        loadData(obj, { scope: 'total', video: videos[0] });
+      }
+
+      /*
+       *
+       **/
+      function loadData(obj, filter, yAxisLabel) {
+        yAxisLabel = yAxisLabel === undefined ? 'views' : yAxisLabel;
+        var isRelative = filter['scope'].match(/-relative/) === null ? 0 : 1;
+        filter['scope'] = filter['scope'].replace(/-relative/, '');
+
+        d3.json("/data/playback-" + filter['scope'] + "-peaks/video/" + filter['video'] + '/group/' + (filter['group'] === undefined ? '-' : filter['group']), function (error, res) {
+          json = res.data;
+          const t1 = performance.now();
+
+          $('#mainPeakChart').empty();
+          if (error) console.warn(error);
+
+          var signal = json.signal;
+          if (isRelative) {
+            signal = signal.map(function (x) { return (x / json.unique) * 100; });
+          }
+
+          var peaks = findPeaks(signal);
+
+          var svg = d3.select("#mainPeakChart").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom);
+          var g = svg.append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+          var x = d3.scale.linear()
+            .domain([0, signal.length])
+            .range([20, width]);
+
+          var y = d3.scale.linear()
+            .domain([0, isRelative ? 100 : d3.max(signal)])
+            .range([height, 0]);
+
+          var formatTime = d3.time.format("%M:%S"),
+            formatMinutes = function (d) { return formatTime(new Date(2012, 0, 1, 0, 0, d)); };
+
+          var xAxis = d3.svg.axis()
+            .scale(x)
+            .tickFormat(formatMinutes)
+            ;
+
+          var yAxis = d3.svg.axis()
+            .scale(y)
+            .orient("left")
+            .ticks(10)
+            ;
+
+          var line2 = d3.svg.line()
+            .x(function (d, i) { return x(i); })
+            .y(function (d) { return y(d); })
+            ;
+
+          var line = d3.svg.area()
+            .x(function (d, i) { return x(i); })
+            .y0(height)
+            .y1(function (d) { return y(d); })
+            ;
+
+          var area = d3.svg.area()
+            .x(function (d) { return x(d.x); })
+            .y0(height)
+            .y1(function (d) { return y(d.y); });
+
+          g.append("g")
+            .datum(signal)
+            .append("path")
+            .attr("class", "main-segment")
+            .attr("d", line);
+
+          // Axis  
+          g.append("g")
+            .attr("class", "axis")
+            .attr("transform", "translate(0," + y(0) + ")")
+            .call(xAxis)
+            ;
+
+          g.append("g")
+            .attr("class", "axis")
+            .attr("transform", "translate(" + 18 + ",0)")
+            .call(yAxis);
+
+          // now add titles to the axes
+          var ge = new gauss.Vector(signal);
+          $('.note').html(' (Median=' + ge.median().toFixed(2) + ', STDEV=' + ge.stdev().toFixed(2) + ')')
+
+          // x label
+          g.append("text")
+            .attr("text-anchor", "middle")  // this makes it easy to centre the text as the transform is applied to the anchor
+            .attr("transform", "translate(" + (-12) + "," + (height / 2) + ")rotate(-90)")  // text is drawn off the screen top left, move down and out and rotate
+            .text(yAxisLabel);
+
+          // y label  
+          g.append("text")
+            .attr("text-anchor", "right")
+            .attr("transform", "translate(" + (width - 70) + "," + (height + 30) + ")")  // centre below axis
+            .text("Playback time");
+
+
+          // Peak dots, line, areas        
+          g.selectAll(".peak")
+            .data(peaks)
+            .enter().append("circle")
+            .attr("cx", function (peak) { return x(peak.index); })
+            .attr("cy", function (peak) { return y(signal[peak.index]); })
+            .attr("r", 3)
+            .attr("class", "peak");
+
+          line.interpolate("basis")
+            .x(function (d) { return x(d.index); })
+            .y(function (d) { return y(signal[d.index]); })
+            ;
+
+          peaks.sort(function (a, b) { return a.index - b.index; });
+          g.append("g")
+            .datum(peaks)
+            .append("path")
+            .attr("d", line)
+            .attr("class", "cardinal");
+
+          var areas = [];
+          peaks.forEach(function (peak) {
+            var width = peak.width;
+            if (width > 8) {
+              var lowerBound = Math.max(0, peak.index - width);
+              var upperBound = Math.min(signal.length, peak.index + width + 1);
+
+              var a = [];
+              for (var i = lowerBound; i < upperBound; i++) {
+                a.push({
+                  x: i,
+                  y: signal[i]
+                });
+              }
+              areas.push(a);
+            }
+          });
+
+          areas.forEach(function (data) {
+            g.append("g")
+              .datum(data)
+              .append("path")
+              .attr("d", area)
+              .attr("class", "area");
+          });
+
+          // POI
+          var markers = json.markers[filter['video']];
+          for (var i = 0, len = markers.length; i < len; i++) { //alert(JSON.stringify(markers[i]))
+            if (parseInt(markers[i].group, 10) === 0) {
+              const xpos = markers[i].time;
+              g.append("line")
+                .attr("x1", x(xpos))  //<<== change your code here
+                .attr("y1", 0)
+                .attr("x2", x(xpos))  //<<== and here
+                .attr("y2", function () {
+                  if (markers[i].type === 'slide') { return height - margin.top - margin.bottom; }
+                  if (markers[i].type === 'assessment') { return height - margin.top - margin.bottom + 20 }
+                  if (markers[i].type === 'comment') { return height - margin.top - margin.bottom + 40 }
+                })
+                .attr("class", "poi-line");
+
+              g.append("text")
+                .attr("x", x(xpos) + 4)
+                .attr("y", function () {
+                  if (markers[i].type === 'slide') { return margin.top; }
+                  if (markers[i].type === 'assessment') { return margin.top + 20; }
+                  if (markers[i].type === 'comment') { return margin.top + 40; }
+                })
+                .attr("text-anchor", "start")
+                .attr("class", "poi-label")
+                .text(markers[i].type);
+            }
+
+          }
+
+
+          res.metrics.pageload = t1 - t0;
+          res.metrics.d3rendering = performance.now() - t1;
+          res.metrics.browser = navigator.userAgent.split(' ')[navigator.userAgent.split(' ').length-1].split('/')[0];
+          $.ajax({
+            type: "POST",
+            url: '/log/metrics',
+            data: res.metrics,
+            dataType: 'json'
+          });
+        }); // end signal peaks
+
+
+
+        /**
+         * 
+         */
+        d3.json("/data/playback-speed/video/" + filter['video'] + '/group/' + (filter['group'] === undefined ? '-' : filter['group']), function (error, json) {
+          $('#mainSpeedChart').empty();
+          if (error) console.warn(error);
+
+          var signal = json.signal;
+
+          var peaks = findPeaks(signal);
+
+          var svg = d3.select("#mainSpeedChart").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height2 + margin.top + margin.bottom);
+          var g = svg.append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+          var x = d3.scale.linear()
+            .domain([0, signal.length])
+            .range([20, width]);
+
+          var y = d3.scale.linear()
+            .domain([0, 2]) // d3.max(signal)
+            .range([height2, 0]);
+
+          var formatTime = d3.time.format("%M:%S"),
+            formatMinutes = function (d) { return formatTime(new Date(2012, 0, 1, 0, 0, d)); };
+
+          var xAxis = d3.svg.axis()
+            .scale(x)
+            .tickFormat(formatMinutes)
+            ;
+
+          var yAxis = d3.svg.axis()
+            .scale(y)
+            .orient("left")
+            .ticks(2)
+            ;
+
+          var line2 = d3.svg.line()
+            .x(function (d, i) { return x(i); })
+            .y(function (d) { return y(d); })
+            ;
+
+          var line = d3.svg.area()
+            .x(function (d, i) { return x(i); })
+            .y0(height2)
+            .y1(function (d) { return y(d); })
+            ;
+
+
+
+          // Axis  
+          g.append("g")
+            .attr("class", "axis")
+            .attr("transform", "translate(0," + y(0) + ")")
+            .call(xAxis)
+            ;
+          g.append("g")
+            .attr("class", "axis")
+            .attr("transform", "translate(" + 20 + ",0)")
+            .call(yAxis);
+
+        
+
+          // now add titles to the axes
+          var ge = new gauss.Vector(signal);
+          $('.note').html(' (Median=' + ge.median().toFixed(2) + ', STDEV=' + ge.stdev().toFixed(2) + ')')
+
+          g.append("text")
+            .attr("text-anchor", "middle")  // this makes it easy to centre the text as the transform is applied to the anchor
+            .attr("transform", "translate(" + (-8) + "," + (height2 / 2) + ")rotate(-90)")  // text is drawn off the screen top left, move down and out and rotate
+            .text('speed');
+
+          g.append("text")
+            .attr("text-anchor", "right")
+            .attr("transform", "translate(" + (width - 70) + "," + (height2 + 30) + ")")  // centre below axis
+            .text("Playback time");
+
+
+         
+          line.interpolate("basis")
+            .x(function (d) { return x(d.index); })
+            .y(function (d) { return y(signal[d.index]); })
+            ;
+
+          peaks.sort(function (a, b) { return a.index - b.index; });
+          g.append("g")
+            .datum(peaks)
+            .append("path")
+            .attr("d", line)
+            .attr("class", "cardinal");
+            
+
+            var line3 = d3.svg.area()
+            .x0(margin.left)
+            .x1(width)
+            .y0(function (d) { return y(1); })
+            .y1(function (d) { return y(1); })
+            ;
+
+            g.append("g")
+            .datum(peaks)
+            .append("path")
+            .attr("d", line3)
+            .attr("class", "hair-line")
+            ;
+
+            
+
+        });
+      }
+    </script>
+
+
+    <% include footer %>

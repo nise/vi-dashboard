@@ -1,0 +1,65 @@
+<% include layout %>
+
+	<% include scripts %>
+
+		<div class="container">
+			<h3>Testing Performance</h3>
+			
+
+		<script>
+			var
+				paths = [
+				/*
+				/data/access/video/:video/group/:group
+				/data/cordtra/group/:group/user/:user
+				/data/playback-total-peaks/video/:video/group/:group
+				/data/playback-user-peaks/video/:video/group/:group
+				/data/playback-group-peaks/video/:video/group/:group
+				/data/playback-speed/video/:video/group/:group
+				/data/forward-backward/videos/:video/groups/:group
+				/data/groups
+				/data/sessions/group/:group
+				/data/playback-histogram/videos/:video/groups/:group
+				/data/playback-jumps/video/:video
+				*/
+				//'/chart/index',
+				//'/chart/access',
+				'/chart/cordtra',
+				'/chart/cordtra',
+				'/chart/playback-peaks',
+				'/chart/rewatching',
+				'/chart/forward-backward',
+				'/chart/groups',
+				'/chart/playback-histogram',
+				'/chart/playback-interactions/group/101/user/24',
+				],
+				sess = [];
+
+			var 
+			 i = 0,
+			 runs = 0
+			;
+
+			function openclosewindow() {
+				
+				// do whatever you like here
+				sess[i] = window.open(paths[i], "MyWindowName" + i+'-'+runs, "width=700,height=300");
+				setTimeout(function () { 
+					sess[i].close(); 
+					$('#debug').append('run: '+runs+', path: '+ paths[i]+', i: '+i+'<br>')
+					i++; }, 9000);
+				if (i < paths.length){
+					setTimeout(openclosewindow, 9000);
+				}else{
+					runs++;
+					if(runs < 100){
+						i=0;
+						openclosewindow();
+					}
+				}	
+			}
+			openclosewindow();
+		</script>
+		<div id="debug"></div>
+
+		<% include footer %>

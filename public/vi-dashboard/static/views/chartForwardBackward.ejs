@@ -1,0 +1,195 @@
+<% include layout %>
+
+    <div class="container" id="chartFB">
+        <div class="main-chart col-md-9">
+            <h3>Forward-Backward-Diagram</h3>
+            <hr>
+            <div id="mainChart" class="row"></div>
+            <div id="help" class="help">
+                <h4><span class="glyphicon glyphicon-question-sign"></span> Help</h4>
+                <div data-i18n="forward_backward_chart.help.main"></div>
+            </div>
+        </div>
+        <div class="filter-area col-md-3">
+            <h4>FILTER <a class="filter-reset" href="javascript:observer.resetCharts();">reset</a></h4>
+            <div class="">
+                <h5>Groups</h5>
+                <div id="group-select"></div>
+            </div>
+            <div class="" hidden>
+                <h5>Interaction Context</h5>
+                <div id="context-chart"></div>
+            </div>
+            <div class="">
+                <h5>Video files</h5>
+                <div id="video-select"></div>
+            </div>
+
+        </div>
+    </div>
+    
+    <% include scripts %>
+
+    <script>
+        const t0 = performance.now();
+        var observer = new Observer();
+
+        const video_keys = <%-JSON.stringify(videos, null, '\t') %>;
+        const context_keys = <%-JSON.stringify(context, null, '\t') %>;
+        const group_keys = <%-JSON.stringify(groups, null, '\t') %>;
+        const color_range = ['yellow', 'blue', 'purple', 'red', 'orange', 'green', 'black'];
+        const filterChartHeight = 150;
+        const filterSingleColors = d3.scale.ordinal().domain([0]).range(['#e6550d']);
+        const filterMultiColors = d3.scale.ordinal().domain(context_keys).range(color_range);
+
+        var
+            lastSelected = {},
+            obj = {}
+            ;
+        obj.dim = { first: 0, second: 1, third: 2 };
+        obj.keys = { first: null, second: null, third: context_keys };
+        obj.labels = { first: 'Forward moves', second: 'Backward moves', third: 'Context' };
+        obj.filters = [];
+
+        // init filters, dim, type, items, selector, ylabel, labels
+        select_filter({ dim: 'video', type: 'radio', items: video_keys, selector: '#video-select' });
+        select_filter({ dim: 'group', type: 'radio', items: group_keys, selector: '#group-select' });
+        //select_filter('scope', 'radio', ['total', 'user', 'group'], '#scope-select', ['views', 'number of users who watched the segment']);
+        loadData(obj, { video: video_keys[0], group: group_keys[0] });
+
+
+		/*
+		*
+		*/
+        function loadData(obj, filter) {
+            $("#mainChart").empty();
+            // Set the dimensions of the canvas / graph
+            var margin = { top: 30, right: 50, bottom: 35, left: 40 },
+                width = $("#mainChart").width() / 3 - margin.left - margin.right,
+                height = ($("#mainChart").width() * .75) / 3 - margin.top - margin.bottom;
+
+            // Colors
+            var cValue = function (d) { return d.c; },
+                color = d3.scale.category10();
+
+
+            // Set the ranges
+            var x = d3.scale.linear().range([0, width]);
+            var y = d3.scale.linear().range([height, 0]);
+
+            // Define the axes
+            var xAxis = d3.svg.axis().scale(x)
+                .orient("bottom").ticks(4);
+
+            var yAxis = d3.svg.axis().scale(y)
+                .orient("left").ticks(4);
+
+            // Define the line
+            var valueline = d3.svg.line()
+                .x(function (d) { return x(d.x); })
+                .y(function (d) { return y(d.y); });
+
+            // Get the data
+            d3.json("/data/forward-backward/videos/" + filter['video'] + "/groups/" + filter['group'], function (error, res) {
+                var the_data = res.data;
+                const t1 = performance.now(); 
+                // iterate users
+                for (var i = 0; i < the_data.results.length; i++) {
+                    data = the_data.results[i];
+                    var div = $('<div></div>').attr('id', 'user' + i).addClass('col-md-4');
+                    $("#mainChart").append(div);
+
+                    // Adds the svg canvas
+                    var svg = d3.select('#user' + i)
+                        .append("svg")
+                        .attr("width", width + margin.left + margin.right)
+                        .attr("height", height + margin.top + margin.bottom)
+                        .append("g")
+                        .attr("transform",
+                        "translate(" + margin.left + "," + margin.top + ")");
+                    data.forEach(function (d) {
+                        d.x = +d.x / 3600;
+                        d.y = +d.y / 3600;
+                        d.context = d.c;
+                        d.c = context_keys.indexOf(d.c);
+                    });
+
+                    // Scale the range of the data
+                    x.domain([0, the_data.maxX / 3600]);
+                    y.domain([0, the_data.maxY / 3600]);
+
+                    // Add the valueline path.
+                    svg.append("path")
+                        .attr("class", "line")
+                        .attr("d", valueline(data))
+                        ;
+                    // Add dots for each context to graph
+                    svg.selectAll("dot")
+                        .data(data)
+                        .enter().append("circle")
+                        .attr("r", function (d) { return d.context === 'player' ? 0 : 2.5; })
+                        .attr("cx", function (d) { return x(d.x); })
+                        .attr("cy", function (d) { return y(d.y); })
+                        .attr("data-legend", function (d) { return d.context; })
+                        .style("fill", function (d) { return color(d.c); })
+                        //.classed("my-selector", true)
+                        ;
+                    // Add the X Axis
+                    svg.append("g")
+                        .attr("class", "x axis")
+                        .attr("transform", "translate(0," + height + ")")
+                        .call(xAxis);
+
+                    // Add the Y Axis
+                    svg.append("g")
+                        .attr("class", "y axis")
+                        .call(yAxis);
+
+                    // Title
+                    svg.append("text")
+                        .attr("x", (width / 2))
+                        .attr("y", 0 - (margin.top / 2))
+                        .attr("text-anchor", "middle")
+                        .attr("class", "chart-title")
+                        .text([
+                            "User " + the_data.users[i],
+                            ' (Group ' + the_data.groups[i] + ')'
+
+                        ].join(''))
+                        ;
+
+                    // Legend
+                    var legend = svg.append("g")
+                        .attr("class", "legend")
+                        .attr("alignment-baseline", "baseline")
+                        .attr("transform", "translate(" + (width - 60) + "," + (height / 2) + ")")
+                        .style("font-size", "12px")
+                        .call(d3.legend)
+                        ;
+
+                    // Axis label
+                    svg.append("text") // y
+                        .attr("text-anchor", "middle")  // this makes it easy to centre the text as the transform is applied to the anchor
+                        .attr("transform", "translate(" + (-25) + "," + (height / 2) + ")rotate(-90)")  // text is drawn off the screen top left, move down and out and rotate
+                        .text('Seek back (min)');
+
+                    svg.append("text") // x
+                        .attr("text-anchor", "middle")  // this makes it easy to centre the text as the transform is applied to the anchor
+                        .attr("transform", "translate(" + (width / 2) + "," + (height + margin.bottom - 3) + ")")  // centre below axis
+                        .text('Playback time (min)');
+
+                }
+                res.metrics.pageload = t1 - t0;
+                res.metrics.d3rendering = performance.now() - t1;
+                res.metrics.browser = navigator.userAgent.split(' ')[navigator.userAgent.split(' ').length-1].split('/')[0];
+                $.ajax({
+                    type: "POST",
+                    url: '/log/metrics',
+                    data: res.metrics,
+                    dataType: 'json'
+                });
+            });
+        } // end load data
+    </script>
+
+    <% include footer %>
