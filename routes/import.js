@@ -90,7 +90,7 @@ exports.makeCleanLog = function (req, result) {
 **/
 exports.hyperlinks = function () {
 	var
-		videos = JSON.parse(fs.readFileSync(projectConfiguration.videos))
+		videos = JSON.parse(fs.readFileSync(projectConfiguration.videos));
 	lfn = 1,
 		out = 'number,video-id,video-file,author-id,question-type,question,correct,answer-option',
 		correct = false

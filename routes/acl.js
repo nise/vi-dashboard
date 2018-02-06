@@ -158,7 +158,8 @@ module.exports = function (db, app) {
 
 
 	// method for writing log entries in a file instead:	
-	var log = fs.createWriteStream('/home/abb/Documents/proj_001_doc/pub/51-LAK-dashboards/test-performance/metrics.csv', { 'flags': 'w' }); // use {'flags': 'a'} to append and {'flags': 'w'} to erase and write a new file
+	var log = fs.createWriteStream(__dirname + '/../metrics.csv', { 'flags': 'w' }); // use {'flags': 'a'} to append and {'flags': 'w'} to erase and write a new file
+	///home/abb/Documents/proj_001_doc/pub/51-LAK-dashboards/test-performance/
 
 	/** end logging ************************************************************/
 
