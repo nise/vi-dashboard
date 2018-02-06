@@ -48,16 +48,16 @@ app.use(logger({ path: "./console.log" }));
 app.use(expressMetrics({ port: 8091 })); // start a metrics server
 app.use(compression())
 app.use(expressMinify({
-    override:      true,
-    exception_url: false, //['/path/that/should/not/be/minified']
-    htmlMinifier: {
-        removeComments:            true,
-        collapseWhitespace:        true,
-        collapseBooleanAttributes: true,
-        removeAttributeQuotes:     true,
-        removeEmptyAttributes:     true,
-        minifyJS:                  true
-    }
+	override: true,
+	exception_url: false, //['/path/that/should/not/be/minified']
+	htmlMinifier: {
+		removeComments: true,
+		collapseWhitespace: true,
+		collapseBooleanAttributes: true,
+		removeAttributeQuotes: true,
+		removeEmptyAttributes: true,
+		minifyJS: true
+	}
 }));
 app.use(express.static(path.join(__dirname, 'public/' + application)));
 app.set('views', __dirname + '/public/' + application + '/static/views');
@@ -90,7 +90,13 @@ app.set("jsonp callback", true); // ?????
 /* 
 * Init database, load data, and init ACL 
 **/
-var conn = mongoose.connect('mongodb://localhost/' + application, function () { /* dummy function */ })
+mongoose.Promise = require('bluebird');
+var conn = mongoose.connect(
+	'mongodb://localhost/' + application, 
+	{
+		useMongoClient: true,
+		promiseLibrary: require('bluebird')
+	}, function () { /* dummy function */ })
 	.then(() => {
 		// Initialize Access Control List 
 		var ACL = require('./routes/acl')(conn, app);
