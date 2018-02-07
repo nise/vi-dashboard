@@ -32,7 +32,7 @@
     "method-override": "^2.3.10",
     "moment": "^2.20.1",
     "mongodb": "^2.2.34",
-    "mongoose": "^4.13.9",
+    "mongoose": "^4.13.10",
     "node-fs": "^0.1.7",
     "object-sizeof": "^1.2.0",
     "sizeof": "^1.0.0",
@@ -59,7 +59,7 @@
     "jshint": "latest",
     "psi": "^3.1.0",
     "stylus": "latest",
-    "uglify-js": "^3.3.8"
+    "uglify-js": "^3.3.9"
   },
   "repository": {
     "type": "git",

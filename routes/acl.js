@@ -9,7 +9,8 @@ module.exports = function (db, app) {
 	const db_list = ['LogExt2', 'LogMarkov2', 'LogIWRM'];
 	var
 		database = db_list[2],
-		module = {}
+		module = {},
+		etut = {}
 		;
 
 	// CLI shortcuts
@@ -27,12 +28,12 @@ module.exports = function (db, app) {
 			var iwrm = require('./import-csv')(app);
 			break;
 		case 'import-etutor':
-			var etut = require('./import-etutor')(app);
+			etut = require('./import-etutor')(app);
 			break;
 		case 'import':
-			var etut = require('./import-markov')(app);
+			etut = require('./import-markov')(app);
 			break;
-		case 'import-etutor':
+		case 'import-etutorxx':
 			//var csv = require('./import-csv')(app);
 			break;
 		default: // start a database

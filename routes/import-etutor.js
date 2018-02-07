@@ -31,13 +31,13 @@ module.exports = function (source, target) {
 			if (err) {
 				res.send(err);
 			}
-			var stream = LogExt.find().stream();
+			var stream = LogExt.find().cursor();
 			// explode from scratch	 	
 			stream
 				.on("error", function (err) { console.log(err); })
 				.on("end", function (data) { console.log('finished import'); })
 				.on("data", function (data) {
-					//console.log('entry converted');
+					console.log('prepare log entry '+data.utc);
 					// setup playback speed as a permanent field by fetching the change events	
 					speed[data.user] = speed[data.user] || [];
 					speed[data.user][data.user_session] = speed[data.user][data.user_session] || 1;
@@ -102,10 +102,10 @@ module.exports = function (source, target) {
 								entry.date = d.format("DD-MM-YYYY");
 								entry.time = d.format("hh:mm:ss");
 								entry.the_date = d.toDate();
-								new LogExt2(entry).save();
+								new LogExt2(entry).save(function(e){ console.log('Saved prepared log '+data.utc);});
 							}
 						} else {
-							new LogExt2(entry).save();
+							new LogExt2(entry).save(function (e) { console.log('Saved prepared log ' + data.utc); });
 						}
 					}
 				});	// end stream data	
@@ -115,5 +115,5 @@ module.exports = function (source, target) {
 	module.explode();
 
 	return module;
-}
+};
 

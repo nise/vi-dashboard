@@ -1,7 +1,7 @@
 /*
 author: niels.seidel@nise81.com
 module: Data Preparation
-description: 
+description: Generates an simulated log of user and group intercations in video-based learing
 
 **/
 
