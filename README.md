@@ -10,14 +10,16 @@
 
 **Import data**
 * IWRM education log files: `node server import-iwrm`
-* Scripted video collaboration (E-Tutor Qualification): `node server import-etutor`
+* Scripted video collaboration (E-Tutor Qualification): 
+ * Restore the dataset from dumped file: `mongorestore --db vi-dashboard ./dump/vi-dashboard` 
+ * Import and convert the data: `node server import-etutor`
 
 **Simulate data**
 * Generate simulation data: `node server markov` (see /routs/markov.js for settings)
 
 **Load a specific dataset**
 * Load IWRM education dataset: `node server LogIWRM`
-* Load IWRM education dataset: `node server LogExt2`
+* Load etutor dataset: `node server LogExt2`
 * Load simulated data: `node server LogMarkov2`
 
 

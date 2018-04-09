@@ -8,11 +8,11 @@ description:
 module.exports = function (db, app) {
 	const db_list = ['LogExt2', 'LogMarkov2', 'LogIWRM'];
 	var
-		database = db_list[2],
+		database = db_list[0],
 		module = {},
 		etut = {}
 		;
-
+	
 	// CLI shortcuts
 	// e.g.: node --max-old-space-size=8192 server markov // 12288 = 12GB
 	switch (process.argv[2]) {
@@ -33,6 +33,9 @@ module.exports = function (db, app) {
 		case 'import':
 			etut = require('./import-markov')(app);
 			break;
+		case 'import-scm':
+			etut = require('./import-scm')(app);
+			break;	
 		case 'import-etutorxx':
 			//var csv = require('./import-csv')(app);
 			break;

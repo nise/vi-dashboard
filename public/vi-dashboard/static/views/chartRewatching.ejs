@@ -1,7 +1,7 @@
 <% include layout %>
 
-	<div class="container" id="chartCordtra">
-		<div class="main-chart col-md-9">
+	<div class="row" id="chartCordtra">
+		<div class="main-chart col-md-9 col-9">
 			<h3>Rewatching Graphs</h3>
 			<hr>
 			<div id="mainChart" class="row"></div>
@@ -10,7 +10,7 @@
 				<div data-i18n="rewatching_chart.help.main"></div>
 			</div>
 		</div>
-		<div class="filter-area col-md-3">
+		<div class="filter-area col-md-3 col-3">
 			<h4>FILTER</h4>
 			<div>
 				<h5>Color coding</h5>
@@ -19,7 +19,6 @@
 					<option value=3>user session</option>
 				</select>
 			</div>
-
 			<div>
 				<h5>Groups</h5>
 				<div id="group-select"></div>
@@ -82,7 +81,7 @@
 		*
 		*/
 		function loadData(obj, filter) {
-			alert(JSON.stringify(filter))
+			//alert(JSON.stringify(filter))
 			current_obj = obj;
 			current_filter = obj;
 			$("#mainChart").empty();
@@ -186,7 +185,8 @@
 						return legendables;//.sort(function (a, b) { });
 					});*/
 					chart.legend(dc.legend().x(chart.width() - 30).y(0).itemHeight(13).gap(5))
-					chart.legendables(function (d) { alert(JSON.stringify(d)); return [{ chart: { __dcFlag__: 1 }, color: "red" }]; });
+					chart.legendables(function (d) { //alert(JSON.stringify(d)); 
+						return [{ chart: { __dcFlag__: 1 }, color: "red" }]; });
 					chart.render();
 				}// end for
 				//dc.renderAll();

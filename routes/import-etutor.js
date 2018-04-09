@@ -37,7 +37,6 @@ module.exports = function (source, target) {
 				.on("error", function (err) { console.log(err); })
 				.on("end", function (data) { console.log('finished import'); })
 				.on("data", function (data) {
-					console.log('prepare log entry '+data.utc);
 					// setup playback speed as a permanent field by fetching the change events	
 					speed[data.user] = speed[data.user] || [];
 					speed[data.user][data.user_session] = speed[data.user][data.user_session] || 1;
@@ -102,10 +101,10 @@ module.exports = function (source, target) {
 								entry.date = d.format("DD-MM-YYYY");
 								entry.time = d.format("hh:mm:ss");
 								entry.the_date = d.toDate();
-								new LogExt2(entry).save(function(e){ console.log('Saved prepared log '+data.utc);});
+								new LogExt2(entry).save();
 							}
 						} else {
-							new LogExt2(entry).save(function (e) { console.log('Saved prepared log ' + data.utc); });
+							new LogExt2(entry).save();
 						}
 					}
 				});	// end stream data	

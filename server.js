@@ -92,11 +92,11 @@ app.set("jsonp callback", true); // ?????
 **/
 mongoose.Promise = require('bluebird');
 var conn = mongoose.connect(
-	'mongodb://localhost/' + application, 
+	'mongodb://localhost:27017/' + application, 
 	{
 		useMongoClient: true,
 		promiseLibrary: require('bluebird')
-	}, function () { /* dummy function */ })
+	})// , function () { /* dummy function */ }
 	.then(() => {
 		// Initialize Access Control List 
 		var ACL = require('./routes/acl')(conn, app);
@@ -104,12 +104,9 @@ var conn = mongoose.connect(
 		server.listen(port);
 		server.setMaxListeners(0);
 		//console.log(process.env.NODE_ENV);
-		/*
 		console.log('\n\n***************************************************************');
 		console.log('Started server for application »' + application + '« on port ' + port);
 		console.log('***************************************************************\n\n');
-		*/
-
 		return;
 	})
 	.catch(err => { // mongoose connection error will be handled here
