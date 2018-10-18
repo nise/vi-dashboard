@@ -1,6 +1,7 @@
 
 ## Roadmap
 * single page app
+* optimize perfomance: lighthouse <url> 
 * modularize js code from views and compress it
 * change scale
 * rotate dimensions
@@ -39,7 +40,6 @@ SCM
 
 # urgent
 * playback-hist.ejs filters not working
-
 
 
 ---

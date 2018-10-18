@@ -18,17 +18,20 @@ var
 	path = require('path'),
 	flash = require('connect-flash'),
 	server = require('http').createServer(app),
-	application = 'vi-dashboard', // default 
-	mongoose = require('mongoose'),
-	port = 3000
+	mongoose = require('mongoose')
 	;
 
+let settings = {
+	caching: true,
+	application: 'vi-dashboard',
+	port: 3000
+};
 
 /* 
  * Returns the name of the currently running application
  **/
 exports.application = function (req, res) {
-	return application;
+	return settings.application;
 };
 
 
@@ -41,10 +44,22 @@ exports.server = function (req, res) {
 
 
 /* configure application **/
-app.set('port', process.env.PORT || port);
-// 	app.use(express.logger('dev'));  /* 'default', 'short', 'tiny', 'dev' */
-var logger = require('express-logger');
-app.use(logger({ path: "./console.log" }));
+app.set('port', process.env.PORT || settings.port);
+
+var expressWinston = require('express-winston');
+var winston = require('winston'); // for transports.Console
+
+app.use(expressWinston.logger({
+	transports: [
+		new winston.transports.Console()
+	],
+	format: winston.format.combine(
+		winston.format.colorize(),
+		winston.format.splat(),
+		winston.format.simple()//..json()
+	)
+}));
+winston.log('info', 'test message %s', 'my string');
 app.use(expressMetrics({ port: 8091 })); // start a metrics server
 app.use(compression())
 app.use(expressMinify({
@@ -59,8 +74,8 @@ app.use(expressMinify({
 		minifyJS: true
 	}
 }));
-app.use(express.static(path.join(__dirname, 'public/' + application)));
-app.set('views', __dirname + '/public/' + application + '/static/views');
+app.use(express.static(path.join(__dirname, 'public/' + settings.application)));
+app.set('views', __dirname + '/public/' + settings.application + '/static/views');
 app.set('view engine', 'ejs');
 app.engine('ejs', require('ejs-locals'));
 
@@ -92,20 +107,20 @@ app.set("jsonp callback", true); // ?????
 **/
 mongoose.Promise = require('bluebird');
 var conn = mongoose.connect(
-	'mongodb://localhost:27017/' + application, 
+	'mongodb://localhost:27017/' + settings.application, 
 	{
 		useMongoClient: true,
 		promiseLibrary: require('bluebird')
-	})// , function () { /* dummy function */ }
+	})
 	.then(() => {
 		// Initialize Access Control List 
-		var ACL = require('./routes/acl')(conn, app);
+		var ACL = require('./routes/acl')(conn, app, settings);
 		// start server
-		server.listen(port);
-		server.setMaxListeners(0);
-		//console.log(process.env.NODE_ENV);
+		server.listen(settings.port);
+		//server.setMaxListeners(0);
+		console.log(process.env.NODE_ENV);
 		console.log('\n\n***************************************************************');
-		console.log('Started server for application »' + application + '« on port ' + port);
+		console.log('Started server for application »' + settings.application + '« on port ' + settings.port);
 		console.log('***************************************************************\n\n');
 		return;
 	})

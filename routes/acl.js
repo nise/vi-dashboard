@@ -5,14 +5,14 @@ description:
 
 **/
 
-module.exports = function (db, app) {
+module.exports = function (db, app, caching) {
 	const db_list = ['LogExt2', 'LogMarkov2', 'LogIWRM'];
 	var
 		database = db_list[0],
 		module = {},
 		etut = {}
 		;
-	
+
 	// CLI shortcuts
 	// e.g.: node --max-old-space-size=8192 server markov // 12288 = 12GB
 	switch (process.argv[2]) {
@@ -35,7 +35,7 @@ module.exports = function (db, app) {
 			break;
 		case 'import-scm':
 			etut = require('./import-scm')(app);
-			break;	
+			break;
 		case 'import-etutorxx':
 			//var csv = require('./import-csv')(app);
 			break;
@@ -47,21 +47,20 @@ module.exports = function (db, app) {
 
 
 	mongoose = require('mongoose'),
-		LogExt2 = mongoose.model(database),
-		Metrics = mongoose.model('Metrics'),
-		Cache = mongoose.model('Cache'),
-		fs = require('node-fs'),
-		fss = require('fs'),
-		get_ip = require('ipware')().get_ip,
-		crossfilter = require("crossfilter"),
-		moment = require('moment'),
-		menu = require('./menu').getMenuDOM(),
-		//	importer = require('./import'),
-		async = require('async'),
-		utils = require('./utils')
-		;
+	LogExt2 = mongoose.model(database),
+	Metrics = mongoose.model('Metrics'),
+	Cache = mongoose.model('Cache'),
+	fs = require('node-fs'),
+	fss = require('fs'),
+	get_ip = require('ipware')().get_ip,
+	crossfilter = require("crossfilter"),
+	moment = require('moment'),
+	menu = require('./menu').getMenuDOM(),
+	//	importer = require('./import'),
+	async = require('async'),
+	utils = require('./utils')
 	Promise = require('bluebird')
-		;
+	;
 	require('mongoose').Promise = require('bluebird')
 	Promise.promisifyAll(mongoose); // key part - promisification
 
@@ -110,10 +109,7 @@ module.exports = function (db, app) {
 	dataStatus();
 
 
-	/* DEFINE ROUTS */
-
-
-
+	/* DEFINE ROUTES */
 
 	//Metrics.remove(function (err) { console.log('Removed stored metrics'); });
 
@@ -174,24 +170,29 @@ module.exports = function (db, app) {
 	/** 
 	 * General cache route
 	 */
-	const caching = false;
-
 	app.get('/cached/data/*', function (req, res) {
+		console.log('.........................................................\n\n');
 		var
 			hrstart = process.hrtime(),
 			query = req._parsedUrl.path.replace('/cached', '')
 			;
-		Cache.findOne({ query: query }, function (err, data) {
-			if (err) {
-				console.log(err);
-			}
-			else if (data !== null && caching) {
-				res.jsonp(data.data);
-				console.info("Cached execution of query '%s' tooks %d ms.", query, (process.hrtime(hrstart)[1] / 1000000).toFixed(2));
-			} else {
-				res.redirect(query);
-			}
-		});
+		if (caching) {
+			Cache.findOne({ query: query }, function (err, data) {
+				if (err) {
+					console.log(err);
+				} else if (data !== null) {
+					res.jsonp(data.data);
+					console.log("Cached execution of query '%s' tooks %d ms.", query, (process.hrtime(hrstart)[1] / 1000000).toFixed(2));
+				} else {
+					console.log("Could not cached data for query '%s'.", query);
+					res.redirect(query);
+				}
+			});
+		} else {
+			console.log("Caching not enabled for the App.");
+			res.redirect(query);
+		}
+
 	});
 
 

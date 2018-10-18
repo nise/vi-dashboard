@@ -10,6 +10,7 @@ module.exports = function (app, database) {
 		module = {},
 		mongoose = require('mongoose'),
 		LogExt2 = mongoose.model(database),
+		Cache = mongoose.model('Cache'),
 		menu = require('./menu').getMenuDOM(),
 		async = require('async'),
 		Promise = require('bluebird'),
@@ -19,10 +20,13 @@ module.exports = function (app, database) {
 	require('mongoose').Promise = require('bluebird')
 	Promise.promisifyAll(mongoose); // key part - promisification
 
+	mongoose.set('debug', true, function (coll, method, query, doc) {
+		log.debug('query executed:', coll, method, query, doc);
+	});
 
 	/*
-		 * ForwardBackward 
-		 **/
+	 * ForwardBackward 
+	 **/
 	app.get('/chart/forward-backward', function (req, res) {
 		Promise.props({
 			videos: LogExt2.find().distinct('video_file').execAsync(),
@@ -33,7 +37,7 @@ module.exports = function (app, database) {
 			res.render('chartForwardBackward', {
 				menu: menu,
 				videos: results.videos.sort(),
-				groups: results.groups.sort(function(a, b){return a-b}),
+				groups: results.groups.sort(function (a, b) { return a - b }),
 				context: results.context.sort()
 			});
 		}).catch(function (err) {
@@ -76,7 +80,7 @@ module.exports = function (app, database) {
 				// iterate users		
 				for (var j = 0; j < the_data.length; j++) {
 					data = the_data[j].a;
-					users.push(the_data[j].user); 
+					users.push(the_data[j].user);
 					groups.push(the_data[j].group);
 					// reset
 					tmp = { time: 0, utc: data[0].utc };
@@ -116,21 +120,26 @@ module.exports = function (app, database) {
 						querytime: process.hrtime(hrstart)[1] / 1000000
 					}
 				});
+				var t = new Cache({ query: req._parsedUrl.path, data: result });
+				t.save();
+				
 			});
 	});
 
-	function getQuery(match_query){ return [
-		{ "$match": match_query },
-		{
-			'$group': {
-				'_id': {
-					'user': "$user",
-					'group': "$group"
-				},
-				'a': { '$push': { 'utc': '$utc', 'playback_time': '$playback_time', 'context': '$action_context', 'type': '$action_type' } }
-			}
-		},
-		//{ "$sort": { "_id.group": 1 } },
-		{ '$project': { 'user': '$_id.user', 'group': '$_id.group', '_id': 0, "a": 1 } } /*, "session":'$_id.session'*/
-	]}
+	function getQuery(match_query) {
+		return [
+			{ "$match": match_query },
+			{
+				'$group': {
+					'_id': {
+						'user': "$user",
+						'group': "$group"
+					},
+					'a': { '$push': { 'utc': '$utc', 'playback_time': '$playback_time', 'context': '$action_context', 'type': '$action_type' } }
+				}
+			},
+			//{ "$sort": { "_id.group": 1 } },
+			{ '$project': { 'user': '$_id.user', 'group': '$_id.group', '_id': 0, "a": 1 } } /*, "session":'$_id.session'*/
+		]
+	}
 }

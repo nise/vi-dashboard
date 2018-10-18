@@ -90,7 +90,7 @@
                 .y(function (d) { return y(d.y); });
 
             // Get the data
-            d3.json("/data/forward-backward/videos/" + filter['video'] + "/groups/" + filter['group'], function (error, res) {
+            d3.json("/cached/data/forward-backward/videos/" + filter['video'] + "/groups/" + filter['group'], function (error, res) {
                 var the_data = res.data;
                 const t1 = performance.now(); 
                 // iterate users
@@ -179,6 +179,7 @@
                         .text('Playback time (min)');
 
                 }
+                
                 res.metrics.pageload = t1 - t0;
                 res.metrics.d3rendering = performance.now() - t1;
                 res.metrics.browser = navigator.userAgent.split(' ')[navigator.userAgent.split(' ').length-1].split('/')[0];
