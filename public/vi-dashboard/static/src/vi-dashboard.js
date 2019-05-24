@@ -90,7 +90,10 @@ function Observer() {
 /*
  * Select filter
  **/
-function select_filter(obj, select_all) {
+function select_filter(obj, select_all) { 
+    if(obj.items.length < 2){
+        return;
+    }
     var
         sel = [],
         out = '',
@@ -109,7 +112,8 @@ function select_filter(obj, select_all) {
         ];
         out += sel.join('');
     });
-    $(obj.selector).html($(out));
+    $(obj.selector).html('<h4>'+obj.label+'</h4>');
+    $(obj.selector).append($(out));
 
     $(function () {
         //if you have any radio selected by default

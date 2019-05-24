@@ -3,45 +3,46 @@
  * todo: https://www.npmjs.com/package/cli-progress
  */
 
-module.exports = function (db) {
+module.exports = function(db, file) {
 
-    var
-        module = {},
+    const
+
         l = require('winston'),
         mongoose = require('mongoose'),
         LogIWRM = mongoose.model('LogIWRM'),
         csv = require('csv-parser'),
         fs = require('fs'),
         ua_parser = require('ua-parser-js'),
-        geoip = require('geoip-lite'),
-        item = {}
-        ;
+        geoip = require('geoip-lite');
+    let
+        module = {};
+
     module.db = db;
 
     /**
      * Import
      */
-    module.importcsv = function () {
-        var
+    module.importcsv = function() {
+        let
             session = {},
-            videos = []
-            ; 
-        LogIWRM.remove({}, function (err) {
+            videos = [];
+        LogIWRM.remove({}, function(err) {
             l.log('info', 'Removed all data from collection before import starts')
-            fs.createReadStream(__dirname+'/../import_data/20170921-iwrm_cleaned.csv')
+            fs.createReadStream(__dirname + '/../import_data/' + file)
                 .pipe(csv())
-                .on('data', function (d) {
+                .on('data', function(d) {
                     if (typeof parseInt(d.utc, 10) === "number" && d.utc !== '') {
-                        if (videos.indexOf(d.video) < 0) {
-                            videos.push(d.video);
+                        if (videos.indexOf(d.video_id) < 0) {
+                            videos.push(d.video_id);
                         }
                         var
                             date = new Date(parseInt(d.utc, 10)),
                             ua = ua_parser(d.ua),
                             geo = geoip.lookup(d.ip),
-                            video_id = videos.indexOf(d.video)
-                            ;
-//console.log(d.utc,date)
+                            video_id = videos.indexOf(d.video_id);
+                        //console.log(d.utc,date)
+
+                        // utc,date,time,user,user_name,user_culture,user_gender,use_session,group,group_name,pahse,video_id,video_file,video_language,video_length,action_context,action_type,action_value,action_artefact,action_artefact_id,action_artefact_author,action_artefact_time,action_artefact_response,playback_time,speed,ip,ua_browser,ua_browser_engine,ua_browser_version,ua_device,ua_os,ua_os_version
                         var o = {
                             the_date: date,
                             utc: parseInt(d.utc, 10),
@@ -85,8 +86,8 @@ module.exports = function (db) {
                             ip_city: geo && geo.city !== '' ? geo.city : 'na',
                             ip_ll: geo ? geo.ll : []
                         };
-                        if(d.video !== '' ){
-                            o.video_file = String(d.video).toLowerCase();
+                        if (d.video_id !== '') {
+                            o.video_file = String(d.video_id).toLowerCase();
                         }
                         if (d.context === 'player' && d.action === 'seek') {
                             delete o.action_value;
@@ -102,28 +103,28 @@ module.exports = function (db) {
                         // determine sessions
                         var t = 'u' + String(o.ip).replace(/\./g, '');
                         if (session[t] === undefined) {
-                            session[t] = {}; session[t].session = 0; session[t].utc = o.utc;
+                            session[t] = {};
+                            session[t].session = 0;
+                            session[t].utc = o.utc;
                         }
                         // consider entry as a new session if it is more then 30 Minutes difference
                         if ((o.utc - session[t].utc) > 1800000) {
-                            session[t].session++; 
+                            session[t].session++;
                         }
                         session[t].utc = o.utc;
                         o.user_session = session[t].session;
                         o.user_name = t;
-                        o.user = String(o.ip).replace(/\./g, '');
-                        
+                        o.user = parseInt(d.user, 16); // String(o.ip).replace(/\./g, ''); // IWRM adoption
+
                         var uu = new LogIWRM(o);
-                        uu.save(function (err) {
-                            if (err) { console.log(err); }
-                        });
+                        uu.save(function(err) {});
                         //console.log(o)
                     }
                 })
-                .on('end', function (e) {
+                .on('end', function(e) {
                     console.log('Finished import from CSV');
                 })
-                .on('error', function (e) {
+                .on('error', function(e) {
                     console.log('error', e);
                 });
         }); // end delete users
@@ -132,4 +133,4 @@ module.exports = function (db) {
 
     module.importcsv();
 
-}
+};

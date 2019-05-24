@@ -4,8 +4,6 @@
  * @description: Learning dashboard for visualizing log data form collaborative video-based learning environments.
  **/
 
-
-//require('@glimpse/glimpse').init();
 require('./db');
 
 var
@@ -46,22 +44,22 @@ exports.server = function (req, res) {
 /* configure application **/
 app.set('port', process.env.PORT || settings.port);
 
-var expressWinston = require('express-winston');
-var winston = require('winston'); // for transports.Console
+//var expressWinston = require('express-winston');
+//var winston = require('winston'); // for transports.Console
 
-app.use(expressWinston.logger({
+/*app.use(expressWinston.logger({
+	level: 'error',
 	transports: [
-		new winston.transports.Console()
+		new winston.transports.Console({ level: 'error' })
 	],
 	format: winston.format.combine(
 		winston.format.colorize(),
 		winston.format.splat(),
 		winston.format.simple()//..json()
 	)
-}));
-winston.log('info', 'test message %s', 'my string');
+}));*/
 app.use(expressMetrics({ port: 8091 })); // start a metrics server
-app.use(compression())
+app.use(compression());
 app.use(expressMinify({
 	override: true,
 	exception_url: false, //['/path/that/should/not/be/minified']
@@ -114,7 +112,9 @@ var conn = mongoose.connect(
 	})
 	.then(() => {
 		// Initialize Access Control List 
-		var ACL = require('./routes/acl')(conn, app, settings);
+		require('./routes/acl')(conn, app, settings);
+		//var z = '2dac509be1f8f3662b53fa50758a232d42f7f09f05315de5fa9e6a95e1250da2';
+		//console.log(parseInt(z, 16))
 		// start server
 		server.listen(settings.port);
 		//server.setMaxListeners(0);

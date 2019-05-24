@@ -1,206 +1,208 @@
 <% include layout %>
 
-	<div class="row" id="chartCordtra">
-		<div class="main-chart col-md-9 col-9">
-			<h3>Rewatching Graphs</h3>
-			<hr>
-			<div id="mainChart" class="row"></div>
-			<div id="help" class="help">
-				<h4><span class="glyphicon glyphicon-question-sign"></span> Help</h4>
-				<div data-i18n="rewatching_chart.help.main"></div>
-			</div>
-		</div>
-		<div class="filter-area col-md-3 col-3">
-			<h4>FILTER</h4>
-			<div>
-				<h5>Color coding</h5>
-				<select id="scope">
-					<option value=2>interaction context</option>
-					<option value=3>user session</option>
-				</select>
-			</div>
-			<div>
-				<h5>Groups</h5>
-				<div id="group-select"></div>
-			</div>
+<div class="row" id="chartCordtra">
+	<div class="main-chart col-md-9 col-9">
+		<h3>Rewatching Graphs</h3>
+		<hr>
+		<div id="mainChart" class="row"></div>
+		<div id="help" class="help">
+			<h4><span class="glyphicon glyphicon-question-sign"></span> Help</h4>
+			<div data-i18n="rewatching_chart.help.main"></div>
 		</div>
 	</div>
+	<div class="filter-area col-md-3 col-3">
+		<h4>FILTER</h4>
+		<div>
+			<h5>Color coding</h5>
+			<select id="scope">
+				<option value=2>interaction context</option>
+				<option value=3>user session</option>
+			</select>
+		</div>
+		<div>
+			<h5>Groups</h5>
+			<div id="group-select"></div>
+		</div>
 	</div>
+</div>
+</div>
 
-	<% include scripts %>
-	
-	<script>
-		const t0 = performance.now();
-		var observer = new Observer();
+<% include scripts %>
 
-		const video_keys = <%-JSON.stringify(videos, null, '\t') %>;
-		const context_keys = <%-JSON.stringify(context, null, '\t') %>;
-		const group_keys = <%-JSON.stringify(groups, null, '\t') %>;
-		const color_range = ['yellow', 'blue', 'purple', 'red', 'orange', 'green', 'black'];
-		const filterChartHeight = 150;
-		const filterSingleColors = d3.scale.ordinal().domain([0]).range(['#e6550d']);
-		const filterMultiColors = d3.scale.ordinal().domain(context_keys).range(color_range);
+<script>
+	const t0 = performance.now();
+	var observer = new Observer();
+
+	const video_keys = <% -JSON.stringify(videos, null, '\t') %>;
+	const context_keys = <% -JSON.stringify(context, null, '\t') %>;
+	const group_keys = <% -JSON.stringify(groups, null, '\t') %>;
+	const color_range = ['yellow', 'blue', 'purple', 'red', 'orange', 'green', 'black'];
+	const filterChartHeight = 150;
+	const filterSingleColors = d3.scale.ordinal().domain([0]).range(['#e6550d']);
+	const filterMultiColors = d3.scale.ordinal().domain(context_keys).range(color_range);
+
+	var
+		lastSelected = {},
+		obj = {},
+		current_obj = {},
+		current_filter = {}
+		;
+	obj.dim = { first: 0, second: 1, third: 2 };
+	obj.keys = { first: null, second: null, third: context_keys };
+	obj.labels = { first: 'Forward moves', second: 'Backward moves', third: 'Context' };
+	obj.filters = [];
+
+	// init filters
+	select_filter({ dim: 'video', type: 'radio', items: video_keys, selector: '#video-select' });
+	select_filter({ dim: 'group', type: 'radio', items: group_keys, selector: '#group-select' });
+	//select_filter('scope', 'radio', ['total', 'user', 'group'], '#scope-select', ['views', 'number of users who watched the segment']);
+	loadData(obj, { video: video_keys[0], group: group_keys[0] });
+
+	//phaseRingChart   = dc.pieChart("#chart-ring-phase")
+	//contextRowChart = dc.rowChart("#context-chart"),
+	//userRowChart = dc.rowChart("#user-chart"),
+	//videoRowChart = dc.rowChart("#video-chart")
+
+	$('#scope').on('change', function (e) {
+		current_obj.dim.third = parseInt($(this).val(), 10);
+		loadData(current_obj, { video: video_keys[0], group: group_keys[0] });// current_filter);
+	});
+
+	function remove_empty_bins(source_group) {
+		return {
+			all: function () {
+				return source_group.all().filter(function (d) { //alert(JSON.stringify(d))
+					return d.value != 0;
+				});
+			}
+		};
+	}
+
+	/*
+	*
+	*/
+	function loadData(obj, filter) {
+		//alert(JSON.stringify(filter))
+		current_obj = obj;
+		current_filter = obj;
+		$("#mainChart").empty();
 
 		var
-			lastSelected = {},
-			obj = {}
-		current_obj = {}
-		current_filter = {};
-		obj.dim = { first: 0, second: 1, third: 2 };
-		obj.keys = { first: null, second: null, third: context_keys };
-		obj.labels = { first: 'Forward moves', second: 'Backward moves', third: 'Context' };
-		obj.filters = [];
+			dateTimeFormat = d3.time.format('%M:%S'),
+			hours = d3.time.format('%H'),
+			//group_names = ['a', 'b', 'c', 'd', 'e', 'f'],
+			context_keys = ['assessment', 'comments', 'hyperlinks', 'playbackSpeed', 'player', 'skipBack', 'toc'],
+			color_range = ['yellow', 'blue', 'purple', 'red', 'orange', 'green', 'black'],
+			formatTime = d3.time.format("%M:%S")
+			;
 
-		// init filters
-		select_filter({ dim: 'video', type: 'radio', items: video_keys, selector: '#video-select' });
-		select_filter({ dim: 'group', type: 'radio', items: group_keys, selector: '#group-select' });
-		//select_filter('scope', 'radio', ['total', 'user', 'group'], '#scope-select', ['views', 'number of users who watched the segment']);
-		loadData(obj, { video: video_keys[0], group: group_keys[0] });
+		// load data of group
+		d3.json("/cached/data/rewatching/group/" + filter['group'] + "/video/" + filter['video'], function (error, res) {
+			var the_data = res.data;
+			if (the_data === undefined) {
+				return;
+			}
+			const t1 = performance.now();
 
-		//phaseRingChart   = dc.pieChart("#chart-ring-phase")
-		//contextRowChart = dc.rowChart("#context-chart"),
-		//userRowChart = dc.rowChart("#user-chart"),
-		//videoRowChart = dc.rowChart("#video-chart")
+			// iterate users
+			for (var i = 0; i < the_data.length; i++) {
+				data = the_data[i].a;
 
-		$('#scope').on('change', function (e) {
-			current_obj.dim.third = parseInt($(this).val(), 10);
-			loadData(current_obj, { video: video_keys[0], group: group_keys[0] });// current_filter);
-		});
+				var el = document.createElement('div');
+				el.classList.add('col-md-6');
+				el.setAttribute("id", 'user' + i);
+				parent = document.getElementById("mainChart");
+				parent.appendChild(el);
 
-		function remove_empty_bins(source_group) {
-			return {
-				all: function () {
-					return source_group.all().filter(function (d) { //alert(JSON.stringify(d))
-						return d.value != 0;
-					});
-				}
-			};
-		}
+				var chart = dc.scatterPlot("#user" + i);
 
-		/*
-		*
-		*/
-		function loadData(obj, filter) {
-			//alert(JSON.stringify(filter))
-			current_obj = obj;
-			current_filter = obj;
-			$("#mainChart").empty();
-
-			var
-				dateTimeFormat = d3.time.format('%M:%S'),
-				hours = d3.time.format('%H'),
-				//group_names = ['a', 'b', 'c', 'd', 'e', 'f'],
-				context_keys = ['assessment', 'comments', 'hyperlinks', 'playbackSpeed', 'player', 'skipBack', 'toc'],
-				color_range = ['yellow', 'blue', 'purple', 'red', 'orange', 'green', 'black'],
-				formatTime = d3.time.format("%M:%S")
-				;
-
-			// load data of group
-			d3.json("/cached/data/rewatching/group/" + filter['group'] + "/video/" + filter['video'], function (error, res) {
-				var the_data = res.data;
-				if (the_data === undefined) {
-					return;
-				}
-				const t1 = performance.now();
-
-				// iterate users
-				for (var i = 0; i < the_data.length; i++) {
-					data = the_data[i].a;
-
-					var el = document.createElement('div');
-					el.classList.add('col-md-6');
-					el.setAttribute("id", 'user' + i);
-					parent = document.getElementById("mainChart");
-					parent.appendChild(el);
-
-					var chart = dc.scatterPlot("#user" + i);
-
-					data.forEach(function (d) {
-						//var t = d.t.split(':')[0];
-						//d.time = t.charAt(0) === '0' ? +t.charAt(1) : +t;
-						d.time = +d.t;
-					});
-
-					var ndx = crossfilter(data),
-						mainDimension = ndx.dimension(function (d) {
-							return [d.p, d.time, d.c, d.d]
-						});
-					mainGroup = mainDimension.group().reduceSum(function (d) { return d.time; });
-					//
-
-					var
-						yRange = [
-							0, // static for consistent display
-							24
-							//d3.min(mainGroup.all(), function (d) { return +d.key[1]; }),
-							//d3.max(mainGroup.all(), function (d) { return +d.key[1]; })
-						],
-						xRange = [
-							d3.min(mainGroup.all(), function (d) { return +d.key[0]; }),
-							d3.max(mainGroup.all(), function (d) { return +d.key[0]; })
-						];
-
-					/*	var symbolScale = d3.scale.ordinal().range(d3.svg.symbolTypes);
-						var symbolAccessor = function (d) { return symbolScale(d.key[2]); };
-						var subChart = function (c) {
-							return dc.scatterPlot(c)
-								.symbol(symbolAccessor)
-								.symbolSize(8)
-								.highlightedSize(10)
-						};
-	*/
-					chart
-						.width($("#user" + i).width())
-						.height($("#user" + i).width() * 0.75)
-						//    .chart(subChart)
-
-						.margins({ top: 20, right: 30, bottom: 30, left: 45 })
-						.x(d3.scale.linear().domain(xRange).range(xRange))
-						.y(d3.scale.linear().domain([0, 24]).range(yRange))
-						.brushOn(false)
-						.symbolSize(3)
-						//    .symbolAccessor(function(kv) { return kv.key[2]; })
-						// 	.symbol(function(kv) { return kv.key[2]; })
-						.colorAccessor(function (kv) { if (kv !== undefined) { return kv.key[obj.dim.third]; } })
-						.colors(d3.scale.ordinal().domain(context_keys).range(color_range))
-						.yAxisLabel("Hour of day")
-						.xAxisLabel("Playback time / s")
-						.clipPadding(10)
-						.dimension(mainDimension)
-						.group(mainGroup)
-						;
-
-					chart.yAxis().tickFormat(function (h) { return h + ":00"; }).tickValues([0, 3, 6, 9, 12, 15, 18, 21, 24]);//.ticks(6);
-					chart.xAxis()
-						.ticks(6)
-						//.ticks(d3.time.minutes, 10)
-						.tickFormat(function (d) {
-							return dateTimeFormat(new Date(2012, 1, 1, 0, 0, 0, d));
-						})
-						;
-
-					/*dc.override(chart, 'legendables', function () {
-						var legendables = [{chart:{__dcFlag__:1},color:"red"}];//chart._legendables();
-						alert(JSON.stringify(legendables))
-						return legendables;//.sort(function (a, b) { });
-					});*/
-					chart.legend(dc.legend().x(chart.width() - 30).y(0).itemHeight(13).gap(5))
-					chart.legendables(function (d) { //alert(JSON.stringify(d)); 
-						return [{ chart: { __dcFlag__: 1 }, color: "red" }]; });
-					chart.render();
-				}// end for
-				//dc.renderAll();
-				res.metrics.pageload = t1 - t0;
-				res.metrics.d3rendering = performance.now() - t1;
-				res.metrics.browser = navigator.userAgent.split(' ')[navigator.userAgent.split(' ').length-1].split('/')[0];
-				$.ajax({
-					type: "POST",
-					url: '/log/metrics',
-					data: res.metrics,
-					dataType: 'json'
+				data.forEach(function (d) {
+					//var t = d.t.split(':')[0];
+					//d.time = t.charAt(0) === '0' ? +t.charAt(1) : +t;
+					d.time = +d.t;
 				});
-			});
-		}// end load
-	</script>
 
-	<% include footer %>
+				var ndx = crossfilter(data),
+					mainDimension = ndx.dimension(function (d) {
+						return [d.p, d.time, d.c, d.d]
+					});
+				mainGroup = mainDimension.group().reduceSum(function (d) { return d.time; });
+				//
+
+				var
+					yRange = [
+						0, // static for consistent display
+						24
+						//d3.min(mainGroup.all(), function (d) { return +d.key[1]; }),
+						//d3.max(mainGroup.all(), function (d) { return +d.key[1]; })
+					],
+					xRange = [
+						d3.min(mainGroup.all(), function (d) { return +d.key[0]; }),
+						d3.max(mainGroup.all(), function (d) { return +d.key[0]; })
+					];
+
+				/*	var symbolScale = d3.scale.ordinal().range(d3.svg.symbolTypes);
+					var symbolAccessor = function (d) { return symbolScale(d.key[2]); };
+					var subChart = function (c) {
+						return dc.scatterPlot(c)
+							.symbol(symbolAccessor)
+							.symbolSize(8)
+							.highlightedSize(10)
+					};
+*/
+				chart
+					.width($("#user" + i).width())
+					.height($("#user" + i).width() * 0.75)
+					//    .chart(subChart)
+
+					.margins({ top: 20, right: 30, bottom: 30, left: 45 })
+					.x(d3.scale.linear().domain(xRange).range(xRange))
+					.y(d3.scale.linear().domain([0, 24]).range(yRange))
+					.brushOn(false)
+					.symbolSize(3)
+					//    .symbolAccessor(function(kv) { return kv.key[2]; })
+					// 	.symbol(function(kv) { return kv.key[2]; })
+					.colorAccessor(function (kv) { if (kv !== undefined) { return kv.key[obj.dim.third]; } })
+					.colors(d3.scale.ordinal().domain(context_keys).range(color_range))
+					.yAxisLabel("Hour of day")
+					.xAxisLabel("Playback time / s")
+					.clipPadding(10)
+					.dimension(mainDimension)
+					.group(mainGroup)
+					;
+
+				chart.yAxis().tickFormat(function (h) { return h + ":00"; }).tickValues([0, 3, 6, 9, 12, 15, 18, 21, 24]);//.ticks(6);
+				chart.xAxis()
+					.ticks(6)
+					//.ticks(d3.time.minutes, 10)
+					.tickFormat(function (d) {
+						return dateTimeFormat(new Date(2012, 1, 1, 0, 0, 0, d));
+					})
+					;
+
+				/*dc.override(chart, 'legendables', function () {
+					var legendables = [{chart:{__dcFlag__:1},color:"red"}];//chart._legendables();
+					alert(JSON.stringify(legendables))
+					return legendables;//.sort(function (a, b) { });
+				});*/
+				chart.legend(dc.legend().x(chart.width() - 30).y(0).itemHeight(13).gap(5))
+				chart.legendables(function (d) { //alert(JSON.stringify(d)); 
+					return [{ chart: { __dcFlag__: 1 }, color: "red" }];
+				});
+				chart.render();
+			}// end for
+			//dc.renderAll();
+			res.metrics.pageload = t1 - t0;
+			res.metrics.d3rendering = performance.now() - t1;
+			res.metrics.browser = navigator.userAgent.split(' ')[navigator.userAgent.split(' ').length - 1].split('/')[0];
+			$.ajax({
+				type: "POST",
+				url: '/log/metrics',
+				data: res.metrics,
+				dataType: 'json'
+			});
+		});
+	}// end load
+</script>
+
+<% include footer %>

@@ -6,11 +6,11 @@ description:
 **/
 
 module.exports = function (db, app, caching) {
-	const db_list = ['LogExt2', 'LogMarkov2', 'LogIWRM'];
+	const 
+		db_list = ['LogExt2', 'LogMarkov2', 'LogIWRM']
+		;
 	var
-		database = db_list[0],
-		module = {},
-		etut = {}
+		database = db_list[2]
 		;
 
 	// CLI shortcuts
@@ -25,16 +25,19 @@ module.exports = function (db, app, caching) {
 			preparation.explode();
 			break;
 		case 'import-iwrm':
-			var iwrm = require('./import-csv')(app);
+			require('./import-csv')(app, '20170921-iwrm_cleaned.csv');
 			break;
 		case 'import-etutor':
-			etut = require('./import-etutor')(app);
+			require('./import-etutor')(app);
 			break;
 		case 'import':
-			etut = require('./import-markov')(app);
+			require('./import-markov')(app);
+			break;
+		case 'import-hpi':
+			require('./import-csv')(app, 'hpi-intsec2018_clean.csv');
 			break;
 		case 'import-scm':
-			etut = require('./import-scm')(app);
+			require('./import-scm')(app);
 			break;
 		case 'import-etutorxx':
 			//var csv = require('./import-csv')(app);
@@ -45,29 +48,23 @@ module.exports = function (db, app, caching) {
 			}
 	}
 
-
-	mongoose = require('mongoose'),
-	LogExt2 = mongoose.model(database),
-	Metrics = mongoose.model('Metrics'),
-	Cache = mongoose.model('Cache'),
-	fs = require('node-fs'),
-	fss = require('fs'),
-	get_ip = require('ipware')().get_ip,
-	crossfilter = require("crossfilter"),
-	moment = require('moment'),
-	menu = require('./menu').getMenuDOM(),
-	//	importer = require('./import'),
-	async = require('async'),
-	utils = require('./utils')
-	Promise = require('bluebird')
-	;
+	const
+		mongoose = require('mongoose'),
+		LogExt2 = mongoose.model(database),
+		Metrics = mongoose.model('Metrics'),
+		Cache = mongoose.model('Cache'),
+		fs = require('node-fs'),
+		crossfilter = require("crossfilter"),
+		menu = require('./menu').getMenuDOM(),
+		Promise = require('bluebird')
+		;	
 	require('mongoose').Promise = require('bluebird')
-	Promise.promisifyAll(mongoose); // key part - promisification
+	Promise.promisifyAll(mongoose); 
 
 
 	// some tests
-	// LogExt2.find().limit(1).exec(function (err, data) { console.log(data); console.log('...................................'); });
-
+	LogExt2.find().limit(2).exec(function (err, data) { console.log(data); console.log('...................................'); });
+	//LogExt2.distinct('video_id').exec(function (err, data) { console.log(data); console.log('...................................'); });
 	//importer.makeCleanLog();
 
 	let
@@ -114,12 +111,11 @@ module.exports = function (db, app, caching) {
 	//Metrics.remove(function (err) { console.log('Removed stored metrics'); });
 
 	app.post('/log/metrics', function (req, res) {
-		//console.log(req.body)
-		var bam = req.body
+		var bam = req.body;
 		bam.context = bam.context + ',' + database;
 		var t = new Metrics(bam);
 		t.save();
-		//res.end();
+		//res.sendStatus(200);
 	});
 
 	app.get('/log/metrics', function (req, res) {
@@ -179,7 +175,7 @@ module.exports = function (db, app, caching) {
 		if (caching) {
 			Cache.findOne({ query: query }, function (err, data) {
 				if (err) {
-					console.log(err);
+					//console.error(err);
 				} else if (data !== null) {
 					res.jsonp(data.data);
 					console.log("Cached execution of query '%s' tooks %d ms.", query, (process.hrtime(hrstart)[1] / 1000000).toFixed(2));
@@ -301,7 +297,7 @@ module.exports = function (db, app, caching) {
 			console.info("Execution of playback-peaks tooks: %dms of %d items", process.hrtime(hrstart)[1] / 1000000, 0);
 		}).catch(function (err) {
 			console.log(err)
-			res.send(500); // oops - we're even handling errors!
+			res.sendStatus(500); // oops - we're even handling errors!
 		});
 	});
 

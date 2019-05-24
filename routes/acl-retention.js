@@ -33,7 +33,7 @@ module.exports = function (app, database) {
 				videos: utils.sort(results.videos)
 			});
 		}).catch(function (err) {
-			console.log(err)
+			console.log(err);
 			res.send(500); // oops - we're even handling errors!
 		});
 	});

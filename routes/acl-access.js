@@ -26,10 +26,11 @@ module.exports = function (app, database) {
 	 **/
     app.get('/chart/access', function (req, res) {
         Promise.props({
-            videos: LogExt2.find().distinct('video_file').execAsync(),
+            videos: LogExt2.find().distinct('video_id').execAsync(),
             groups: LogExt2.find().distinct('group').execAsync(),
             context: LogExt2.find().distinct('action_context').execAsync()
         }).then(function (results) {
+            console.log(results.groups)
             res.render('chartAccess', {
                 menu: menu,
                 videos: utils.sort(results.videos),
@@ -37,8 +38,8 @@ module.exports = function (app, database) {
                 context: utils.sort(results.context)
             });
         }).catch(function (err) {
-            console.log(err)
-            res.send(500); // oops - we're even handling errors!
+            //console.log(err);
+            res.sendStatus(500);
         });
     });
 
@@ -50,7 +51,7 @@ module.exports = function (app, database) {
      *
      */
     app.get('/data/access/video/:video/group/:group', function (req, res) {
-        console.log('group', req.params.group)
+        //console.log('group', req.params.group)
         var hrstart = process.hrtime();
         var match_query = {};
         match_query.playback_time = { '$ne': 0 }
@@ -64,9 +65,10 @@ module.exports = function (app, database) {
             events: LogExt2.aggregate(access_total).execAsync(),
             yeardays: LogExt2.aggregate(access_day_of_year).execAsync(),
             weekdays: LogExt2.aggregate(access_weekdays).execAsync(),
-            hours: LogExt2.aggregate(access_hours).execAsync(),
-            drop: LogExt2.aggregate(access_drop).execAsync()
-        }).then(function (results) { console.log(results.events);
+            hours: LogExt2.aggregate(access_hours).execAsync()//,
+            //drop: LogExt2.aggregate(access_drop).execAsync()
+        }).then(function (results) {
+            console.log(results.events);
             res.jsonp({
                 data: results,
                 meta: {
@@ -84,13 +86,13 @@ module.exports = function (app, database) {
                 }
             });
         }).catch(function (err) {
-            console.log(err)
-            res.send(500); // oops - we're even handling errors!
+            console.log(err);
+            res.sendStatus(500);
         });
     });
 
     var access_total = [
-       {
+        {
             "$group": {
                 "_id": {
                     "g": "$group",
@@ -104,98 +106,102 @@ module.exports = function (app, database) {
             "$project": {
                 "_id": 0,
                 "g": "$_id.g",
-                "d": "$d",
+                "d": "$_id.d",
                 "sum": "$count"
             }
         },
-        { $sort : { d : -1 } }
+        { $sort: { d: -1 } }
     ];
 
     var access_day_of_year = [
         {
-             "$group": {
-                 "_id": {
-                     "g": "$group",
-                     'd': { $dayOfYear: { $add: [new Date(0), "$utc"] } }
- 
-                 },
-                 "count": { "$sum": 1 }
-             }
-         },
-         {
-             "$project": {
-                 "_id": 0,
-                 "g": "$_id.g",
-                 "d": "$_id.d",
-                 "sum": "$count"
-             }
-         },
-         { $sort : { d : -1 } }
-     ];
+            "$group": {
+                "_id": {
+                    "g": "$group",
+                    'd': {
+                        $dayOfYear: { $add: [new Date(0), "$utc"] }
+                    },
+                    'u': "$utc"
+
+                },
+                "count": { "$sum": 1 }
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "g": "$_id.g",
+                "d": "$_id.d",
+                "u": "$_id.u",
+                "sum": "$count"
+            }
+        },
+        { $sort: { d: -1 } }
+    ];
 
     var access_weekdays = [
         {
-             "$group": {
-                 "_id": {
-                     "g": "$group",
-                     'd': { $dayOfWeek: { $add: [new Date(0), "$utc"] } }
- 
-                 },
-                 "count": { "$sum": 1 }
-             }
-         },
-         {
-             "$project": {
-                 "_id": 0,
-                 "g": "$_id.g",
-                 "d": "$_id.d",
-                 "sum": "$count"
-             }
-         },
-         { $sort : { d : -1 } }
-     ];
+            "$group": {
+                "_id": {
+                    "g": "$group",
+                    'd': { $dayOfWeek: { $add: [new Date(0), "$utc"] } }
 
-     var access_hours = [
+                },
+                "count": { "$sum": 1 }
+            }
+        },
         {
-             "$group": {
-                 "_id": {
-                     "g": "$group",
-                     'd': { $hour: { $add: [new Date(0), "$utc"] } }
- 
-                 },
-                 "count": { "$sum": 1 }
-             }
-         },
-         {
-             "$project": {
-                 "_id": 0,
-                 "g": "$_id.g",
-                 "d": "$_id.d",
-                 "sum": "$count"
-             }
-         },
-         { $sort : { d : -1 } }
-     ];
+            "$project": {
+                "_id": 0,
+                "g": "$_id.g",
+                "d": "$_id.d",
+                "sum": "$count"
+            }
+        },
+        { $sort: { d: -1 } }
+    ];
 
-     var access_drop = [
+    var access_hours = [
         {
-             "$group": {
-                 "_id": {
-                     "u": "$user",
-                     "g": "$group"
-                 },
-                 "days": { "$push": { $dayOfYear: { $add: [new Date(0), "$utc"] } } }
-             }
-         },
-         {
-             "$project": {
-                 "_id": 0,
-                 "g": "$_id.g",
-                 "u": "$_id.u",
-                 "min": {"$min": "$days" },
-                 "max": {"$max": "$days" }
-             }
-         },
-         { $sort : { min : -1 } }
-     ];
+            "$group": {
+                "_id": {
+                    "g": "$group",
+                    'd': { $hour: { $add: [new Date(0), "$utc"] } }
+
+                },
+                "count": { "$sum": 1 }
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "g": "$_id.g",
+                "d": "$_id.d",
+                "sum": "$count"
+            }
+        },
+        { $sort: { d: -1 } }
+    ];
+
+    var access_drop = [
+        {
+            "$group": {
+                "_id": {
+                    "u": "$user",
+                    "g": "$group"
+                },
+                "days": { "$push": { $dayOfYear: { $add: [new Date(0), "$utc"] } } }
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "g": "$_id.g",
+                "u": "$_id.u",
+                "min": { "$max": "$days" },
+                "max": { "$max": "$days" }
+            }
+        },
+        { $sort: { min: -1 } }
+    ];
 } // end module

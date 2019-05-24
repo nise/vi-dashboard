@@ -1,4 +1,9 @@
 
+## bugfixes
+* Gastel
+* Load HPI-Data
+
+
 ## Roadmap
 * single page app
 * optimize perfomance: lighthouse <url> 
@@ -44,6 +49,9 @@ SCM
 
 ---
 # Access
+- $min error
+- day of year should be month
+- events over time not working
 **done** 
 - xxx bug at group switch
 - number of seperate weeks out of the total number of weeks the cours lasts
