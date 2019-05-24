@@ -4,6 +4,8 @@
  * @description: Learning dashboard for visualizing log data form collaborative video-based learning environments.
  **/
 
+
+//require('@glimpse/glimpse').init();
 require('./db');
 
 var
@@ -16,20 +18,17 @@ var
 	path = require('path'),
 	flash = require('connect-flash'),
 	server = require('http').createServer(app),
-	mongoose = require('mongoose')
+	application = 'vi-dashboard', // default 
+	mongoose = require('mongoose'),
+	port = 3000
 	;
 
-let settings = {
-	caching: true,
-	application: 'vi-dashboard',
-	port: 3000
-};
 
 /* 
  * Returns the name of the currently running application
  **/
 exports.application = function (req, res) {
-	return settings.application;
+	return application;
 };
 
 
@@ -42,24 +41,12 @@ exports.server = function (req, res) {
 
 
 /* configure application **/
-app.set('port', process.env.PORT || settings.port);
-
-//var expressWinston = require('express-winston');
-//var winston = require('winston'); // for transports.Console
-
-/*app.use(expressWinston.logger({
-	level: 'error',
-	transports: [
-		new winston.transports.Console({ level: 'error' })
-	],
-	format: winston.format.combine(
-		winston.format.colorize(),
-		winston.format.splat(),
-		winston.format.simple()//..json()
-	)
-}));*/
+app.set('port', process.env.PORT || port);
+// 	app.use(express.logger('dev'));  /* 'default', 'short', 'tiny', 'dev' */
+var logger = require('express-logger');
+app.use(logger({ path: "./console.log" }));
 app.use(expressMetrics({ port: 8091 })); // start a metrics server
-app.use(compression());
+app.use(compression())
 app.use(expressMinify({
 	override: true,
 	exception_url: false, //['/path/that/should/not/be/minified']
@@ -72,8 +59,8 @@ app.use(expressMinify({
 		minifyJS: true
 	}
 }));
-app.use(express.static(path.join(__dirname, 'public/' + settings.application)));
-app.set('views', __dirname + '/public/' + settings.application + '/static/views');
+app.use(express.static(path.join(__dirname, 'public/' + application)));
+app.set('views', __dirname + '/public/' + application + '/static/views');
 app.set('view engine', 'ejs');
 app.engine('ejs', require('ejs-locals'));
 
@@ -105,22 +92,21 @@ app.set("jsonp callback", true); // ?????
 **/
 mongoose.Promise = require('bluebird');
 var conn = mongoose.connect(
-	'mongodb://localhost:27017/' + settings.application, 
+	'mongodb://localhost:27017/' + application, 
 	{
-		useMongoClient: true,
+		// useMongoClient: true,
+		useNewUrlParser: true,
 		promiseLibrary: require('bluebird')
-	})
+	})// , function () { /* dummy function */ }
 	.then(() => {
 		// Initialize Access Control List 
-		require('./routes/acl')(conn, app, settings);
-		//var z = '2dac509be1f8f3662b53fa50758a232d42f7f09f05315de5fa9e6a95e1250da2';
-		//console.log(parseInt(z, 16))
+		var ACL = require('./routes/acl')(conn, app);
 		// start server
-		server.listen(settings.port);
-		//server.setMaxListeners(0);
-		console.log(process.env.NODE_ENV);
+		server.listen(port);
+		server.setMaxListeners(0);
+		//console.log(process.env.NODE_ENV);
 		console.log('\n\n***************************************************************');
-		console.log('Started server for application »' + settings.application + '« on port ' + settings.port);
+		console.log('Started server for application »' + application + '« on port ' + port);
 		console.log('***************************************************************\n\n');
 		return;
 	})

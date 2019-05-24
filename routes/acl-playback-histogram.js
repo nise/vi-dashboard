@@ -45,7 +45,8 @@ module.exports = function (app, database) {
     });
 
     //
-    var match_group = {}, match_video_file = {};
+    var match_group = {}, 
+        match_video_file = {};
     app.get('/data/playback-histogram/videos/:video/groups/:group', function (req, res) {
         var hrstart = process.hrtime();
 
@@ -63,7 +64,8 @@ module.exports = function (app, database) {
         //console.log(match_video_file)
         //console.log(seek_intervals)
         Promise.props({
-            session_duration: LogExt2.aggregate(session_intervals).execAsync(),
+            // alt: session_duration: LogExt2.aggregate(session_intervals).execAsync(), // sg - wieso hier immer ohne Filter!?!?!?! -> bei jedem Filterwechsel werden alle 277 Sessions aus DB gelesen
+            session_duration: LogExt2.aggregate(session_interval(match_video_file, match_group)).execAsync(),
             loading: LogExt2.aggregate(loading_time(match_video_file, match_group)).execAsync(),
             play: LogExt2.aggregate(play_intervals(match_video_file, match_group)).execAsync(),
             seek: LogExt2.aggregate(seek_intervals(match_video_file, match_group)).execAsync()
@@ -79,8 +81,22 @@ module.exports = function (app, database) {
                     results.loading[i].duration = parseInt(results.loading[i].duration.split(';')[0]) / 1000;
                 }
             }
+            // nachträglich entfernt
             delete results.play;
             delete results.seek;
+
+        //    console.log("results Histogramm-Acl: ", results);
+            console.log("--------------------------------");
+            // seek_bw: 
+            //         [ { group: 99,
+            //             video: 'e2script_lecture1_improved.mp4',
+            //             phase: 6,
+            //             duration: 6.7 },
+            //             { group: 101,
+            //             video: 'e2script_lecture5_improved.mp4',
+            //             phase: 6,
+            //             duration: 0.03333333333333333 },
+
 
             res.jsonp({
                 data: results,
@@ -111,25 +127,45 @@ module.exports = function (app, database) {
             res = []
         duration = 0
             ;
-        for (var i = 0, len = arr.length; i < len - 1; i++) {
+        console.log("arr: ", arr);
+        
+        // für alle Objekte im arr -> _id's ( Kombis session/group/user/phase/video )
+        // sg - korrektur: vorher i < len -1!
+        for (var i = 0, len = arr.length; i < len; i++) {
+            //console.log("i: ", i);
+            // wenn Objekt mehr als ein Event besitzt, sonst kann nicht gerechnet werden
             if (arr[i].events.length > 1) {
-                for (var j = 0, len2 = arr[i].events.length; j < len - 1; j++) {
+                // für alle events jedes Objekts im arr
+                // sg - korrektur: vorher j < len -1!
+                for (var j = 0, len2 = arr[i].events.length; j < len2; j++) {
+                    //console.log("j: ", j);
+                    // wenn j-tes event existiert
                     if (arr[i].events[j] !== undefined) {
+                        // wenn type start-parameter z.B. "play-click" oder 'seek-start'
                         if (arr[i].events[j].type === start) {
-                            for (var jj = j + 1, len3 = arr[i].events.length; jj < len - 1; jj++) {
+                            // NUR FÜR DIREKTEN ODER ALLE NACHFOLGER???? -> für alle! bei Treffer -> BREAK!
+                            // dann für direkten Nachfolger prüfen:
+                            // sg - korrektur: vorher j < len -1!
+                            for (var jj = j + 1, len3 = arr[i].events.length; jj < len3; jj++) {
+                                //console.log("jj: ", jj);
+                                // wenn Nachfolger ungleich undefined
                                 if (arr[i].events[jj] !== undefined) {
+                                    // wenn type end-parameter z.B. "pause-click" oder 'seek-stop'
                                     if (arr[i].events[jj].type === end) {
-                                        if (!abs) {
+                                        if (!abs) {                         //  Nachfolger ./. Vorgänger
                                             duration = (parseInt(arr[i].events[jj][method]) - parseInt(arr[i].events[j][method])) / factor;
-                                        } else {
+                                        } else {                            //  Nachfolger ./. Vorgänger
                                             duration = Math.abs(parseInt(arr[i].events[jj][method]) - parseInt(arr[i].events[j][method])) / factor;
                                         }
-
+                                        // wenn größer Limitierung, push ins array
                                         if (duration > limit) {
                                             res.push({ group: arr[i].group, video: arr[i].video, phase: arr[i].phase, duration: duration });
                                         }
+                                        // j mit Zähler des Nachfolgers setzen
                                         j = jj;
-                                        jj = len;
+                                        // Nachfolger-Zähler mit Array-Length setzen???
+                                        // jj = len;
+                                        // for-Schleife verlassen
                                         break;
                                     }
                                 }
@@ -140,10 +176,11 @@ module.exports = function (app, database) {
             }
 
         }
+        console.log("res: ", res);
         return res;
     }
 
-
+    // sg: nicht mehr verwendet -> siehe session_interval()
     var session_intervals = [
         {
             '$group': {
@@ -168,6 +205,40 @@ module.exports = function (app, database) {
             }
         }
     ];
+
+    // sg: session_interval mit Filterberücksichtigung
+    function session_interval(match_video_file, match_group) {
+        return [
+            {
+                "$match": {
+                    video_file: match_video_file,
+                    group: match_group
+                }
+            },
+            {
+                '$group': {
+                    _id: {
+                        session: "$user_session",
+                        group: "$group",
+                        user: "$user",
+                        phase: "$phase",
+                        video: "$video_file"
+                    },
+                    start: { '$min': "$utc" },
+                    end: { '$max': "$utc" }
+                }
+            },
+            {
+                '$project': {
+                    _id: 0,
+                    group: '$_id.group',
+                    phase: '$_id.phase',
+                    video: '$_id.video',
+                    duration: { '$divide': [{ '$subtract': ['$end', '$start'] }, 3600000] }
+                }
+            }
+        ];
+    }
 
     function loading_time(match_video_file, match_group) {
         return [
@@ -206,7 +277,7 @@ module.exports = function (app, database) {
         ];
     }
 
-
+    // sg - aktuell nicht verwendet!
     function viewing_intervals(match_video_file, match_group) {
         return [
             {
@@ -239,6 +310,22 @@ module.exports = function (app, database) {
     }
 
     function play_intervals(match_video_file, match_group) {
+        // {
+        //     "group" : 101,
+        //     "session" : 19,
+        //     "phase" : 3,
+        //     "video" : "e2script_lecture1_improved.mp4",
+        //     "events" : [ 
+        //         {
+        //             "utc" : 1447140835306.0,
+        //             "type" : "play-click"
+        //         }, 
+        //         {
+        //             "utc" : 1447140839305.0,
+        //             "type" : "pause-click"
+        //         }
+        //     ]
+        // }
         return [
             {
                 "$match": {
@@ -253,6 +340,8 @@ module.exports = function (app, database) {
                     group: match_group
                 }
             },
+            // sg - es wird die korrekte zeitliche Reihenfolge für getEventDuration() benötigt!
+            {   "$sort": { "utc":1 } },            
             {
                 '$group': {
                     _id: {
@@ -294,6 +383,8 @@ module.exports = function (app, database) {
                     'group': match_group
                 }
             },
+            // sg - es wird die korrekte zeitliche Reihenfolge für getEventDuration() benötigt!
+            {   "$sort": { "utc":1 } },
             {
                 '$group': {
                     _id: {
@@ -316,7 +407,8 @@ module.exports = function (app, database) {
                     events: '$events',
                     value: '$val'
                 }
-            }
+            },
+
         ]
     };
 }

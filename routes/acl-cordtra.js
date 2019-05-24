@@ -47,6 +47,7 @@ module.exports = function (app, database) {
 	app.get('/data/cordtra/group/:group/user/:user', function (req, res) {
 		var hrstart = process.hrtime();
 		var match_query = {};
+		// action_type != "playback" 
 		match_query.action_type = { "$ne": 'playback' };
 		if (req.params.group !== 'all' && req.params.group !== undefined) {
 			var groups = req.params.group.split(/,/);
@@ -58,7 +59,7 @@ module.exports = function (app, database) {
 			match_query.user = { "$in": user };
 		}
 
-		console.log(match_query);
+		console.log("match_query: ", match_query);
 
 		LogExt2 //
 			.aggregate([
@@ -69,7 +70,7 @@ module.exports = function (app, database) {
 							"d": "$date",
 							"g": "$group",
 							"p": "$phase",
-							//     "user": "$user",
+							  //   "user": "$user",
 							"t": "$action_type",
 							"c": "$action_context"
 						},
@@ -84,7 +85,7 @@ module.exports = function (app, database) {
 						"p": "$_id.p",
 						"t": "$_id.t",
 						"c": "$_id.c",
-						//		  		"u" : "$_id.user",
+								 // 		"u" : "$_id.user",
 						"s": "$s"
 					}
 				}
@@ -94,6 +95,14 @@ module.exports = function (app, database) {
 					res.send(err);
 				}
 				console.log(data[1]);
+				/**
+				 * { d: '2016-02-15',
+				 *   g: 99,
+				 *   p: 6,
+				 *   t: 'pause-click',
+				 *   c: 'player',
+				 *   s: 8 }
+				 */
 				res.jsonp({
 					data: data,
 					metrics: {

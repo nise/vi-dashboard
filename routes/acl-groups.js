@@ -103,6 +103,9 @@ module.exports = function (app, database) {
             results.overlapping_activity_time = getIntervalOverlaps(results.overlapping_activity_time);
             results.playback = events2time(results.playback);
 
+            console.log("==============================")
+            console.log("results acl-groups: ", results)
+
             res.jsonp({
                 data: results,
                 metrics: {
@@ -157,7 +160,7 @@ module.exports = function (app, database) {
                 },
                 group_sum: { '$sum': "$event_count" },
                 group_avg: { '$avg': "$event_count" },
-                group_dev: { '$stdDevPop': '$event_count' },
+                group_dev: { '$stdDevPop': '$event_count' }, // Standardabweichung?!
                 number_of_events: { $sum: 1 },
                 group_max: { '$max': "$event_count" },
                 group_min: { '$min': "$event_count" }
@@ -241,7 +244,7 @@ module.exports = function (app, database) {
                 },
                 sum: { '$sum': "$count" },
                 avg: { '$avg': "$count" },
-                ageStdDev: { $stdDevPop: "$count" },
+                ageStdDev: { $stdDevPop: "$count" }, // Standardabweichung?!
                 n: { $sum: 1 },
                 max: { '$max': "$count" }
             }

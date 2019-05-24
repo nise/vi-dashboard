@@ -1,0 +1,522 @@
+<% include layout %>
+
+    <div class="row" id="partTimespent">
+
+    <div class="main-chart col-md-10">
+
+        <div class="row">
+
+                <!-- #1 Time Spent -->
+                <div class="col-md-12">
+                        <h4 class="title">Time Spent: Welchen Zeitaufwand hatte ich für die Video-Ressource ...</h4>
+                        <div id="chartTimespentVideo" class="row"></div>
+                </div>          
+
+        </div>
+
+    </div>
+
+    <!-- FILTER -->
+    <div class="col-md-2">
+            <h4>FILTER 1: Timespent</h4>
+            <div class="">
+                <h5>Videos</h5>
+                <div id="video-select_1"></div>
+            </div>
+    </div>
+
+    </div>
+    <hr><!-- -------------------------------------------------------------- --> 
+    <div class="row" id="partPeaks">
+
+        <div class="main-chart col-md-10">
+
+            <div class="row">
+
+                <!-- #2 PEAKS -->
+                <div class="col-md-12">
+                    <h4 class="title">Peaks:  ...</h4>
+                    <div id="chartPeaks" class="row"></div>
+                </div>   
+
+            </div>
+
+        </div>
+
+        <!-- FILTER -->
+        <div class="col-md-2">
+            <h4>FILTER 2: Peaks</h4>
+            <div class="">
+            <h5>Videos</h5>
+            <div id="video-select_2"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!----------------------------------------------------------->
+	<% include scripts %>
+    <!----------------------------------------------------------->
+	<script>
+       const t0 = performance.now();
+       console.log("t0-start script: ", t0);
+      var
+        videos = <%-JSON.stringify(videos, null, '\t') %>,
+        lastSelected = {},
+        obj = {}
+        ;
+
+      // init filters
+      select_filter({ dim: 'video', type: 'checkbox', items: videos, selector: '#video-select_1' }, true);
+      select_filter2({ dim: 'video', type: 'radio', items: videos, selector: '#video-select_2' });
+
+			const color_range = ['yellow', 'blue', 'purple', 'red', 'orange', 'green', 'black'];
+			const filterChartHeight = 150;
+
+      // Colors for Vids
+      colors = ["#cd5c5c",  "#007fff",  "#66ff00",  "#4b3621",  "#a9a9a9" ] //, "#f44250", "#41f4dc"];
+      //        indianred,  azureblue,  brightgreen, cafenoir     electricblue
+      days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
+      colorsPeaks = ['#ffff00', '#FF0000'];
+      //              personal, social
+
+			// initial loadData - load the first video
+      loadData(obj, { video: videos });
+      loadData2(obj, { video: videos[0] });
+   
+
+	/*
+	*   Daten laden =============================
+	*/
+    function loadData(obj, filter) {
+					
+          console.log("loadDataFunction: ", " obj: ", obj, " filter: ", filter);
+          // -> obj:  {}__proto__: Object  filter:  {video: "e2script_lecture1_improved.mp4"}
+
+          
+    // *** TIMESPENT - VIDEO ***********************
+          //d3.json("/data/learner-dashboard-user2/timespent-video/video/" + filter['video'] , function (error, res) {
+          d3.json("/cached/data/learner-dashboard-user2/timespent-video/video/" + filter['video'] , function (error, res) {
+
+            // canvas leeren
+            $("#chartTimespentVideo").empty();            
+            console.log("d3json res: ", res);
+              
+            const t1a = performance.now(); 
+            console.log("t1a-loadData Timespent: ", t1a);
+
+            console.log("---TIMESPENT---");
+            console.log("res.data.timespentVideo: ", res.data.timespentVideo);
+                // 0: {u: 20, w: 48, v: "e2script_lecture1_improved.mp4", sum: 0.06666666666666667}
+                // 1: {u: 20, w: 45, v: "e2script_lecture1_improved.mp4", sum: 0.4666666666666667}
+                // 2: {u: 20, w: 44, v: "e2script_lecture1_improved.mp4", sum: 43.1}
+
+            let the_data = res.data.timespentVideo;
+
+            // Set the dimensions of the canvas / graph
+            var margin = { top: 25, right: 10, bottom: 35, left: 80 },
+                width = $("#chartTimespentVideo").width()  - margin.left - margin.right,
+                height = ($("#chartTimespentVideo").width() * .50) / 4 - margin.top - margin.bottom,
+                barwidth = 5,
+                barheight = 10,
+                maxX = 53 ,      // Wochen in 2016 nur 52
+                maxY = d3.max(the_data, function (d) { return d.sum; })
+                ;
+
+            // Formatting Minutes to H:M
+            var formatTime = d3.time.format("%H:%M"),
+            formatMinutes = function(d) { return formatTime(new Date(2019, 0, 1, 0, d)); };
+
+            // Set the ranges
+            var x = d3.scale.linear()
+                .domain([0, maxX])
+                .range([0, width]);
+            var y = d3.scale.linear()
+                .domain([maxY, 0])
+                .range([0, height]);
+
+            // Define the axes
+            var xAxis = d3.svg.axis().scale(x)
+                .orient("bottom").ticks(53);
+
+            var yAxis = d3.svg.axis().scale(y)
+                .orient("left") //.ticks(8) //.tickSize()
+                .tickFormat(formatMinutes);
+
+            /**
+             *  DATA PREPARATION****************************
+             **/
+
+              
+
+            /**
+             *  CANVAS ******************************
+             **/
+
+            // Tooltip in XXh
+            var tip = d3.tip()
+              .attr('class', 'd3-tip')
+              .direction('se')
+              .offset([-10, 0])
+              .html(function (d, i) {
+                var hours = parseInt(d.sum / 60);
+                var minutes = parseInt(d.sum % 60);
+                return arr = [
+                  "Woche: " + d.w,
+                  "Betrachtungszeit: " + hours + "h" + minutes +"m"
+                ].join('<br>');
+              });
+
+            // Adds the svg canvas
+            var svg = d3.select('#chartTimespentVideo')
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform","translate(" + margin.left + "," + margin.top + ")");
+
+            var bars = svg.selectAll(".bar")
+              .data(the_data)
+              .enter()
+              .append("g")
+              ;
+
+            bars.append("rect")
+              .attr("class", "bar")
+              .attr("x", function (d) { return ( x(d.w) - barwidth / 2 )  ; } )
+              .attr("y", function (d) { return y(d.sum); } )
+              .attr("height", function (d) { return y(0) - y(d.sum); } )
+              .attr("width", barwidth )
+              .attr("fill", "red")
+              // Farbe nach Woche
+          //   .attr("fill", function (d) { return z(parseInt(d.w, 10)); })
+              .on('mouseover', tip.show)
+              .on('mouseout', tip.hide)
+              ;         
+
+            /**
+             *  BUILD AXIS
+             **/
+            // Add the X Axis
+            svg.append("g")
+                .attr("class", "x axis")
+                .attr("transform", "translate(" + 0 + "," + height + ")")
+                .call(xAxis);
+            // Add the Y Axis
+            svg.append("g")
+                .attr("class", "y axis")
+                .call(yAxis);
+            // Axis label
+            svg.append("text") // y
+                .attr("class", "yLabel")
+                .attr("text-anchor", "middle")
+                //.attr("transform", "translate(" + (-50) + "," + (height / 2) + ")rotate(-90)")  // 
+                .attr("transform", "translate(" + (30) + "," + ( -10) + ")")                 
+                .text('Zeitaufwand (Stunden:Minuten)');
+            svg.append("text") // x
+                .attr("class", "xLabel")
+                .attr("text-anchor", "middle")
+                .attr("transform", "translate(" + (width / 2) + "," + (height + margin.bottom - 3) + ")") 
+                .text('Kalenderwoche');
+
+            // Title
+            svg.append("text")
+              .attr("x", (width / 2))
+              .attr("y", 0 - (margin.top / 2))
+              .attr("text-anchor", "middle")
+              .attr("class", "chart-title")
+              //.text(res.meta.playbackPerWeek.title)
+              .text(the_data[0].v)
+              ;
+
+
+            svg.call(tip);
+
+            console.log("*** finished timespentVideo ***");
+
+            const t1b = performance.now();
+            const t1c = t1b - t1a; 
+            console.log("t1c-loadData Timespent END: ", t1c);   
+
+            // collect and send performance metrics
+            res.metrics.pageload = t1 - t0;
+            res.metrics.d3rendering = performance.now() - t1;
+            res.metrics.browser = navigator.userAgent.split(' ')[navigator.userAgent.split(' ').length-1].split('/')[0];
+            $.ajax({
+                type: "POST",
+                url: '/log/metrics',
+                data: res.metrics,
+                dataType: 'json'
+            });
+
+
+          }); // end TimeSpentVideo
+
+       
+
+    } // end LoadData()
+
+
+
+    function loadData2(obj, filter) {
+    
+        // *** Social Peaks **************************** 
+            //d3.json("/data/learner-dashboard-user2/peaks/video/" + filter['video'], function (error, res) {
+            d3.json("/cached/data/learner-dashboard-user2/peaks/video/" + filter['video'], function (error, res) {
+    
+                // canvas leeren
+                $("#chartPeaks").empty();            
+                console.log("d3json res: ", res);
+                
+                const t2a = performance.now(); 
+                console.log("t2a-loadData Peaks: ", t2a);
+    
+                console.log("---PEAKS---");
+                console.log("res.data.peaksSocial: ", res.data_social);
+                // 0: {v: "e2script_lecture5_improved.mp4", sec: 0, count: 94}
+                // 1: {v: "e2script_lecture5_improved.mp4", sec: 1, count: 20}
+                // 2: {v: "e2script_lecture5_improved.mp4", sec: 2, count: 23}
+                // 3: {v: "e2script_lecture5_improved.mp4", sec: 4, count: 22}
+                // ...
+                console.log("res.data.peaksPersonal: ", res.data_personal);
+                // 0: {v: "e2script_lecture5_improved.mp4", sec: 0, count: 94}
+                // 1: {v: "e2script_lecture5_improved.mp4", sec: 1, count: 20}
+                // 2: {v: "e2script_lecture5_improved.mp4", sec: 2, count: 23}
+                // 3: {v: "e2script_lecture5_improved.mp4", sec: 4, count: 22}
+                // ...
+    
+                let the_data_social = res.data_social;
+                let the_data_personal = res.data_personal;
+                // let videometa = res.videometa;
+                // console.log("videoMeta: ", videometa);
+                //   { e2script_kickoff.mp4: "0:49:02"
+                //     e2script_lecture1_improved.mp4: "0:46:31"
+                //     e2script_lecture2_improved.mp4: "0:49:58"
+                //     e2script_lecture3_improved.mp4: "0:53:10"
+                //     e2script_lecture4_improved.mp4: "0:43:48"
+                //     e2script_lecture5_improved.mp4: "0:42:58" }
+                let videolength = res.videometa[the_data_social[0].v];
+                console.log("videolength: ", videolength);
+    
+                // DATA PREPARATION 
+                // -> cut off extreme values
+                the_data_social.forEach(function (d, i) {
+                    if( d != null ) {
+                        let temp = d.count;
+                        if (temp > 100) {
+                            d.count = 100;
+                        } 
+                    }  
+                });
+                the_data_personal.forEach(function (d, i) {
+                    if( d != null ) {
+                        let temp = d.count;
+                        if (temp > 100) {
+                            d.count = 100;
+                        } 
+                    }  
+                });
+    
+    
+                // time parsing videolength
+                var formatTimeInput = d3.time.format("%-I:%M:%S");
+                var maxX_videolength = formatTimeInput.parse(videolength);
+                console.log("videolength_date: ", maxX_videolength);
+                var getSeconds = d3.time.format("%S");
+                var getMinutes = d3.time.format("%M");
+                var seconds = getSeconds(maxX_videolength);
+                var minutes = getMinutes(maxX_videolength);
+                console.log("Minutes, Seconds ", minutes, " ", seconds);
+                var videolengthDecimal = parseInt(seconds) + (minutes * 60);
+                console.log("videolength_decimal: ", videolengthDecimal);
+    
+                // Set the dimensions of the canvas / graph
+                var margin = { top: 25, right: 10, bottom: 35, left: 60 },
+                    width = $("#chartPeaks").width() - margin.left - margin.right,
+                    height = ($("#chartPeaks").width() * .80) / 3.3 - margin.top - margin.bottom,
+                    barwidth = 3,
+                    barheight = 10,
+                    maxX = videolengthDecimal;
+                console.log("maxX: ", maxX);
+    
+                var formatTime = d3.time.format("%M:%S"),
+                    formatMinutes = function (d) { return formatTime(new Date(2012, 0, 1, 0, 0, d)); };
+    
+                // Set the ranges
+                var x = d3.scale.linear()
+                .domain([0, maxX])
+                .range([0, width])
+                ;
+                var y = d3.scale.linear()
+                .domain([0, 100])  // maxY static, for cutting extreme values
+                //.domain([0, d3.max(the_data_social, function(d) { return d.count } ) ])
+                .range([height, 0])
+                .nice()
+                ;
+    
+                // Define the axes
+                var xAxis = d3.svg.axis()
+                    .scale(x)
+                    .orient("bottom")
+                    .tickFormat(formatMinutes);
+                var yAxis = d3.svg.axis()
+                    .scale(y)
+                    .orient("left")
+                    .ticks(10);
+    
+                /**
+                 *  CANVAS ******************************
+                 **/
+    
+                // Adds the svg canvas and append a group (g)
+                var svg = d3.select('#chartPeaks')
+                    .append("svg")
+                    .attr("width", width  + margin.left + margin.right ) 
+                    .attr("height", height + margin.top + margin.bottom)
+                    ;
+    
+                // Tooltip
+                var tip = d3.tip()
+                    .attr('class', 'd3-tip')
+                    .direction('se')
+                    .offset([-10, 0])
+                    .html(function (d, i) {
+                    var minutes = parseInt(d.sec / 60);
+                    var seconds = d.sec % 60;
+                    return arr = [
+                        "Zeit: " + minutes + ":" + seconds,
+                        "Anzahl: " + d.count
+                    ].join('<br>');
+                    });            
+    
+                // group for social rects
+                var socialGroup = svg.append("g")
+                    .attr("id", "gSocial_rects")
+                    .attr("transform","translate(" + margin.left + "," + margin.top + ")")
+                    ;
+                var socialBars = socialGroup.selectAll("rect")
+                    .data(the_data_social)
+                    .enter() // data to document
+                    .append("rect") // data becomes tag rect's
+                    .attr("class", "social_rects")
+                    .attr("x", function(d) { return x(d.sec) - ( width / maxX / 2 ) ; })
+                    .attr("y", function(d) { return y(d.count); })
+                    .attr("height", function(d) { return y(0) - y(d.count); })
+                    .attr("width", ( width / maxX ) )
+                    .attr("fill", colorsPeaks[1])
+                    .on('mouseover', tip.show)
+                    .on('mouseout', tip.hide)
+                    ;
+    
+                // group for personal rects
+                var personalGroup = svg.append("g")
+                    .attr("id", "gPersonal_rects")
+                    .attr("transform","translate(" + margin.left + "," + margin.top + ")")
+                    ;
+                var personalBars = personalGroup.selectAll("rect")
+                    .data(the_data_personal)
+                    .enter() // data to document
+                    .append("rect") // data becomes tag rect's 
+                    .attr("class", "personal_rects")
+                    .attr("x", function(d) { return x(d.sec) - ( width / maxX / 2 ) ; })
+                    .attr("y", function(d) { return y(d.count); })
+                    .attr("height", function(d) { return y(0) - y(d.count); })
+                    .attr("width", ( width / maxX ) )
+                    .attr("fill", colorsPeaks[0])
+                    ;
+    
+                /**
+                 *  BUILD AXIS ***********
+                 **/
+                // Add the X Axis
+                svg.append("g")
+                    .attr("class", "x axis")
+                    .attr("transform", "translate(" + margin.left + "," + (height + margin.top) + ")")
+                    .call(xAxis);
+                // Add the Y Axis
+                svg.append("g")
+                    .attr("class", "y axis")
+                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")") // Push left for 00:00 log
+                    .call(yAxis);
+                // Axis label
+                svg.append("text") // y
+                    .attr("class", "yLabel")
+                    .attr("text-anchor", "middle")
+                    // .attr("transform", "translate(" + (-30) + "," + (height / 2) + ")rotate(-90)")  // 
+                    .attr("transform", "translate(" + (80) + "," + (10) + ")")                  
+                    .text('Anzahl Betrachtungen');              
+                svg.append("text") // x
+                    .attr("class", "xLabel")
+                    .attr("text-anchor", "middle")
+                    .attr("transform", "translate(" + (width / 2) + "," + (height + margin.top + 30) + ")") 
+                    .text('Abspielzeit (Minuten:Sekunden)');
+    
+                // Title - name of the videofile
+                svg.append("text")
+                    .attr("class", "chart-title")
+                    .attr("x", (width / 2))
+                    .attr("y", 0 + (margin.top))
+                    .attr("text-anchor", "middle")
+                    .text([
+                        "Video: " + the_data_social[0].v
+                    ].join(''))
+                    ;
+    
+                // Draw legend - Symbols & Text
+                var legend = svg.selectAll(".legend")
+                .data("1")
+                .enter().append("g")
+                .attr("class", "legend")
+                ;
+                legend.append("rect")
+                .attr("x", width - 225)
+                .attr("y", 2)
+                .attr("width", 10)
+                .attr("height", 10)
+                .style("fill", colorsPeaks[1])
+                ;
+                legend.append("text")
+                .attr("class", "legend")
+                .attr("x", width - 200)
+                .attr("y", 5)
+                .attr("dy", ".40em")
+                .style("text-anchor", "start")
+                .text("Betrachtungen anderer")
+                ;
+                legend.append("rect")
+                .attr("x", width - 225)
+                .attr("y", 20)
+                .attr("width", 10)
+                .attr("height", 10)
+                .style("fill", colorsPeaks[0])
+                ;
+                legend.append("text")
+                .attr("class", "legend")
+                .attr("x", width - 200)
+                .attr("y", 25)
+                .attr("dy", ".40em")
+                .style("text-anchor", "start")
+                .text("Betrachtungen persönlich")
+                ;
+    
+                svg.call(tip);
+    
+                console.log("*** finished PEAKS ***");
+
+                const t2b = performance.now(); 
+                const t2c = t2b - t2a
+                console.log("t2c-loadData2 Peaks END: ", t2c);
+    
+            }) // end d3Socialpeaks #1
+    
+
+
+        } // end LoadData2()
+
+
+
+
+
+    </script>
+
+    <% include footer %>

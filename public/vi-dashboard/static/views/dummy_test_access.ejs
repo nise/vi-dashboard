@@ -1,0 +1,747 @@
+<% include layout %>
+
+  <div class="container" id="chartAccess">
+
+    <div class="main-chart col-md-9">
+
+      <h3 class="title">Access Patterns <span class="note"></span></h3>
+      <hr>
+
+      <div class="row">
+        <div class="col-md-12">
+          <div id="mainAccessChart"></div>
+          <div id="help" class="help">
+            <h4><span class="glyphicon glyphicon-question-sign"></span> Help</h4>
+            <div data-i18n="access_main_chart.help.main"></div>
+          </div>
+        </div>
+      </div>
+      <hr>
+
+      <div class="row">
+        <div class="col-md-12">
+          <div id="yeardaysAccessChart"></div>
+          <div id="help" class="help">
+            <h4><span class="glyphicon glyphicon-question-sign"></span> Help</h4>
+            <div data-i18n="access_main_chart.help.yeardays"></div>
+          </div>
+        </div>
+      </div>
+      <hr>
+
+      <div class="row">
+        <div class="col-md-6">
+          <div id="weekdaysAccessChart"></div>
+          <div id="help" class="help">
+            <h4><span class="glyphicon glyphicon-question-sign"></span> Help</h4>
+            <div data-i18n="access_main_chart.help.weekdays"></div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div id="hoursAccessChart"></div>
+          <div id="help" class="help">
+            <h4><span class="glyphicon glyphicon-question-sign"></span> Help</h4>
+            <div data-i18n="access_main_chart.help.hours"></div>
+          </div>
+        </div>
+      </div>
+      <hr>
+
+      <div class="row">
+        <div class="col-md-12" id="dropAccessChart"></div>
+        <div id="help" class="help">
+          <h4><span class="glyphicon glyphicon-question-sign"></span> Help</h4>
+          <div data-i18n="playback_peaks_chart.help.drop"></div>
+        </div>
+      </div>
+      <hr>
+
+
+
+      <div id="help" class="help">
+        <h4><span class="glyphicon glyphicon-question-sign"></span> Help</h4>
+        <div data-i18n="playback_peaks_chart.help.general"></div>
+      </div>
+
+    </div>
+
+    <div class="filter-area col-md-3">
+      <h4>FILTER</h4>
+      <div class="">
+        <h4>Groups</h4>
+        <div id="group-select"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <% include scripts %>
+
+    <script>
+      const t0 = performance.now();
+      var
+        videos = <% -JSON.stringify(videos, null, '\t') %>,
+        groups = <% -JSON.stringify(groups, null, '\t') %>,
+        lastSelected = {},
+        obj = {}
+        ;
+
+      // init filters
+      //select_filter({ dim: 'video', type: 'radio', items: videos, selector: '#video-select' });
+      select_filter({ dim: 'group', type: 'checkbox', items: groups, selector: '#group-select' }, true);
+
+      // #testing=true,scope=group ('total', 'user', 'user-relative', 'group')
+      var hash = window.location.hash.split[',']
+      if (hash !== undefined && hash[0] === 'testing=true') {
+        var scope = hash[1].split('=')[0] === 'scope' ? hash[1].split('=')[1] : 'total';
+        loadData(obj, { scope: scope, group: groups });
+      } else {
+        loadData(obj, { scope: 'total', group: groups });
+      }
+
+      /*
+       *
+       **/
+      function loadData(obj, filter, yAxisLabel) { //alert(JSON.stringify(filter))
+
+        d3.json("/cached/data/access/video/" + filter['video'] + '/group/' + (filter['group'] === undefined ? '-' : filter['group']), function (error, res) {
+          const t1 = performance.now();
+          plotTotalEvents(res, filter);
+          plotYeardays(res, filter);
+          plotWeekdays(res, filter);
+          plotHours(res, filter);
+          plotDrop(res, filter);
+          // sg neu
+         // plotPlaybackPerWeek(res, filter);
+
+
+          // collect and send performance metrics
+          res.metrics.pageload = t1 - t0;
+          res.metrics.d3rendering = performance.now() - t1;
+          res.metrics.browser = navigator.userAgent.split(' ')[navigator.userAgent.split(' ').length - 1].split('/')[0];
+          $.ajax({
+            type: "POST",
+            url: '/log/metrics',
+            data: res.metrics,
+            dataType: 'json'
+          });
+        }); // end signal peaks
+      }
+
+      /**
+       * 
+       */
+      function plotTotalEvents(res, filter) {
+        console.log("res.data.events:", res); // Object { data: Object, meta: Object, metrics: Object }
+        console.log("filter:", filter); // Object { scope: "total", group: Array[1] }
+        $('#mainAccessChart').empty();
+        var signal = {};
+        res.data.events.forEach(function (d) {
+          var timeFormat = d3.time.format("%M/%Y").parse;
+          var dayFormat = d3.time.format("%d.%m.%Y"); // sg - fehler - vorher %M -> minute
+
+          // console.log("d.d:", d.d); // -> d.d: 2013-10-12
+          if (d.d !== undefined) {
+            var t = dayFormat(new Date(d.d));
+            // console.log("dayFormat", t); // -> dayFormat 10.10.2013
+            if (signal[t] === undefined) {
+              signal[t] = { d: t, count: d.sum }; // eine summe pro Tag?!
+            }
+            // console.log("d.sum", d.sum); // -> 61
+            // console.log("indexof", filter.group.indexOf(t));  // -> immer -1!!!
+            /* if (filter.group.indexOf(t) !== -1) {        
+                if (res.data.events.d.indexOf(signal[t]) !== -1) {
+                signal[t].count += d.sum;
+              } */
+          }
+        });
+
+        console.log("signal", signal); // Object { 25.09.2016: {count:0, d:"25.09.2016"}  // Objekt mit Objekten
+        // Einsatz von hasOwnProperty zur Überprüfung der Existenz eines Attributs in einem Objekt
+        var bam = [];
+        for (var d in signal) {
+          if (signal.hasOwnProperty(d)) {
+            bam.push(signal[d]);
+          }
+        }
+        //alert(JSON.stringify(signal))
+        signal = bam; // Array mit Objekten
+        console.log("signal=bam:", signal);
+
+        // sg - d.d als Date
+        var parseTime = d3.time.format("%d.%m.%Y").parse;
+        signal.forEach(function (d) { d.d = parseTime(d.d); }); // -> d.d Date 2016-09-07T22:00:00.000Z
+        console.log("typeof signal.d:", typeof (signal[0].d))
+
+        // sg - sortieren nach datum
+        signal.sort(function (x, y) {
+          return d3.ascending(x.d, y.d)
+        })
+        console.log("sorted signal", signal);
+
+        var
+          margin = { top: 30, left: 50, bottom: 30, right: 35 },
+          width = $("#mainAccessChart").width() - margin.left - margin.right, height = 100,
+          xmin = d3.min(signal, function (d) { return d.d; }),
+          xmax = d3.max(signal, function (d) { return d.d; }),
+          ymax = d3.max(signal, function (d) { return d.count; }),
+          x = d3.time.scale.utc()  // sg vorher d3.scale.linear()
+            .domain([xmin, xmax])
+            .range([0, width]),
+          y = d3.scale.linear()
+            .domain([ymax, 0])
+            .range([0, height])
+          ;
+        console.log("xmin - xmax:", xmin, " - ", xmax);   // sg Date 2012-12-31T23:00:00.000Z  -  Date 2016-09-26T22:00:00.000Z
+
+
+        // Define the axes
+        var xAxis = d3.svg.axis().scale(x)
+          .orient("bottom").ticks(5)
+          .tickFormat(d3.time.format("%d.%m.%Y")); // sg - fehler
+        /*  function (d) {
+          return dateTimeFormat(new Date(d));
+        })
+        */
+        var yAxis = d3.svg.axis().scale(y)
+          .orient("left").ticks(6);
+
+        // Define Tooltip
+        var tip = d3.tip()
+          .attr('class', 'd3-tip')
+          .direction('se')
+          .offset([-10, 0])
+          .html(function (d, i) {
+            return arr = [
+              "Date: " + d.d,
+              "Events: " + d.count
+
+            ].join('<br>');
+          });
+
+        // SVG ---------------------------------------
+        // Adds the svg canvas
+        var svg = d3.select('#mainAccessChart')
+          .append("svg")
+          .attr("width", width + margin.left + margin.right)
+          .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+          .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        // line - area
+        var line = d3.svg.area()
+          .x(function (d, i) { return x(d.d); })
+          .y0(height)
+          .y1(function (d) { return y(d.count); });
+
+        var line2 = d3.svg.line()
+          .x(function (d, i) { //console.log("line:", d.d, x(d.d)); // -> 25.09.2015 NaN
+            return x(d.d);
+          })
+          .y(function (d) { return y(d.count); });
+
+        // Add the valueline path.
+        // sg
+        svg.append("g")
+          .datum(signal)
+          .append("area")
+          .attr("class", "area")
+          .attr("d", line)
+
+        svg.append("g")
+          .datum(signal)
+          .append("path")
+          .attr("class", "line")
+          .attr("d", line);
+
+        // creates larger area for tooltip
+        svg.append("g")
+          .data(signal)
+          .append("rect")
+          .attr("x", function (d) { //alert(JSON.stringify(d))
+            return x(d.d);
+          })
+          .attr("width", width / signal.length)
+          .attr("y", function (d) {
+            return height - y(d.count);
+          })
+          .attr("height", function (d) {
+            return y(d.count);
+          })
+          .style("fill", "none")
+          .style("pinter-events", "all")
+          .on('mouseover', function (d) { tip.show(d) })
+          .on('mouseout', tip.hide());
+
+        // // dots for values
+        // svg.selectAll(".peak")
+        //   .data(signal)
+        //   .enter().append("circle")
+        //   .attr("cx", function (d) { return x(d.d); })
+        //   .attr("cy", function (d) { return y(d.count); })
+        //   .attr("r", 2)
+        //   .attr("class", "dots");
+
+        // Add the X Axis
+        svg.append("g").attr("class", "x axis").attr("transform", "translate(0," + height + ")").call(xAxis);
+        svg.append("g").attr("class", "y axis").call(yAxis);
+
+        // Title
+        svg.append("text")
+          .attr("x", (width / 2))
+          .attr("y", 0 - (margin.top / 2))
+          .attr("text-anchor", "middle")
+          .attr("class", "chart-title")
+          .text(res.meta.events.title);
+        svg.append("text") // x
+          .attr("text-anchor", "middle")  // this makes it easy to centre the text as the transform is applied to the anchor
+          .attr("transform", "translate(" + (width / 2) + "," + (height + margin.bottom) + ")")  // centre below axis
+          .text(res.meta.events.x_dimension + ' (' + res.meta.events.x_unit + ')');
+
+        // sg - call tip
+        svg.call(tip);
+
+
+      }
+
+
+      /**
+       * 
+       */
+      function plotYeardays(res, filter) {
+        $('#yeardaysAccessChart').empty();
+        var signal = [];
+        res.data.yeardays.forEach(function (d) {
+          if (d.d !== undefined) {
+            if (signal[d.d] === undefined) {
+              signal[d.d] = { d: d.d, count: 0 };
+            }
+            if (filter.group.indexOf(d.g) !== -1) {
+              signal[d.d].count += d.sum;
+            }
+          }
+        });
+        var bam = [];
+        signal.forEach(function (d) {
+          bam.push(d);
+        });
+        signal = bam;
+        let
+          margin = { top: 30, left: 50, bottom: 35, right: 35 },
+          width = $("#yeardaysAccessChart").width() - margin.left - margin.right, height = 100,
+          barwidth = (width / 365) + 1,
+          xmin = d3.min(signal, function (d) { return d.d; }),
+          xmax = d3.max(signal, function (d) { return d.d; }),
+          ymax = d3.max(signal, function (d) { return d.count; }),
+          x = d3.scale.linear()
+            .domain([xmin, xmax])
+            .range([0, width]),
+          y = d3.scale.linear()
+            .domain([ymax, 0])
+            .range([0, height])
+          ;
+
+        // Define the axes
+        var xAxis = d3.svg.axis().scale(x)
+          .orient("bottom").ticks(10);//).tickFormat();
+
+        var yAxis = d3.svg.axis().scale(y)
+          .orient("left").ticks(6);
+
+        // Adds the svg canvas
+        var svg = d3.select('#yeardaysAccessChart')
+          .append("svg")
+          .attr("width", width + margin.left + margin.right)
+          .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+          .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        // Tooltip
+        var tip = d3.tip()
+          .attr('class', 'd3-tip')
+          .direction('se')
+          .offset([-10, 0])
+          .html(function (d, i) {
+            return arr = [
+              "Date: " + d.d,
+              "Events: " + d.count
+
+            ].join('<br>');
+          });
+
+        var bars = svg.selectAll(".bar")
+          .data(signal)
+          .enter()
+          .append("g")
+          ;
+
+        bars.append("rect")
+          .attr("class", "bar main-chart-color")
+          .attr("x", function (d) { //alert(JSON.stringify(d))
+            return (x(d.d) - (barwidth / 2));
+          })
+          .attr("width", barwidth)
+          .attr("y", function (d) {
+            return height - y(d.count);
+          })
+          .attr("height", function (d) {
+            return y(d.count);
+          })
+          .on('mouseover', tip.show)
+          .on('mouseout', tip.hide)
+          ;
+
+
+        // Add the X Axis
+        svg.append("g").attr("class", "x axis").attr("transform", "translate(0," + height + ")").call(xAxis);
+        svg.append("g").attr("class", "y axis").call(yAxis);
+
+        // Title
+        svg.append("text")
+          .attr("x", (width / 2))
+          .attr("y", 0 - (margin.top / 2))
+          .attr("text-anchor", "middle")
+          .attr("class", "chart-title")
+          .text(res.meta.yeardays.title)
+          ;
+
+        svg.append("text") // x
+          .attr("text-anchor", "middle")  // this makes it easy to centre the text as the transform is applied to the anchor
+          .attr("transform", "translate(" + (width / 2) + "," + (height + margin.bottom - 3) + ")")  // centre below axis
+          .text(res.meta.yeardays.x_dimension + ' (' + res.meta.yeardays.x_unit + ')');
+
+        svg.call(tip);
+      }
+
+
+      /**
+       * 
+       */
+      function plotWeekdays(res, filter) {
+        $('#weekdaysAccessChart').empty();
+        var signal = [];
+        res.data.weekdays.forEach(function (d) {
+          if (d.d !== undefined) {
+            if (signal[d.d] === undefined) {
+              signal[d.d] = { d: d.d, count: 0 };
+            }
+            if (filter.group.indexOf(d.g) !== -1) {
+              signal[d.d].count += d.sum;
+            }
+          }
+        });
+        var tmp = [];
+        signal.forEach(function (d) {
+          tmp.push(d);
+        });
+        signal = tmp;
+        var
+          margin = { top: 70, left: 70, bottom: 60, right: 35 },
+          width = $("#weekdaysAccessChart").width() - margin.left - margin.right, height = width,
+          xmin = d3.min(signal, function (d) { return d.count; }),
+          xmax = d3.max(signal, function (d) { return d.count; }),
+          ymax = d3.max(signal, function (d) { return d.d; }),
+          barheight = height / ymax / 1.5,
+          days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+          x = d3.scale.linear()
+            .domain([0, xmax])
+            .range([0, width]),
+          y = d3.scale.linear()
+            .domain([1, 7])
+            .range([0, height])
+          ;
+
+        // Define the axes
+        var xAxis = d3.svg.axis().scale(x)
+          .orient("bottom").ticks(5);
+
+        var yAxis = d3.svg.axis().scale(y)
+          .orient("left").ticks(7).tickFormat(function (d) {
+            return days[d - 1]
+          });;
+
+        // Adds the svg canvas
+        var svg = d3.select('#weekdaysAccessChart')
+          .append("svg")
+          .attr("width", width + margin.left + margin.right)
+          .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+          .attr("transform",
+            "translate(" + margin.left + "," + margin.top + ")");
+
+        var bars = svg.selectAll(".bar")
+          .data(signal)
+          .enter()
+          .append("g")
+          ;
+
+        // Tooltip
+        var tip = d3.tip()
+          .attr('class', 'd3-tip')
+          .direction('se')
+          .offset([-10, 0])
+          .html(function (d, i) {
+            return arr = [
+              "Events: " + d.count
+            ].join('<br>');
+          });
+
+        bars.append("rect")
+          .attr("class", "bar main-chart-color")
+          .attr("y", function (d) { //alert(JSON.stringify(d))
+            return (y(d.d) - (barheight / 2));
+          })
+          .attr("height", barheight)
+          .attr("x", 0)
+          .attr("width", function (d) {
+            return x(d.count);
+          })
+          .on('mouseover', tip.show)
+          .on('mouseout', tip.hide)
+          ;
+
+        // Add Axis
+        svg.append("g").attr("class", "x axis").attr("transform", "translate(0," + (height + 25) + ")").call(xAxis);
+        svg.append("g").attr("class", "y axis").call(yAxis);
+
+        // Title
+        svg.append("text")
+          .attr("x", (width / 2))
+          .attr("y", 0 - (margin.top / 2))
+          .attr("text-anchor", "middle")
+          .attr("class", "chart-title")
+          .text(res.meta.weekdays.title)
+          ;
+
+        svg.append("text") // x
+          .attr("text-anchor", "middle")  // this makes it easy to centre the text as the transform is applied to the anchor
+          .attr("transform", "translate(" + (width / 2) + "," + (height + margin.bottom) + ")")  // centre below axis
+          .text(res.meta.weekdays.x_dimension);
+
+        svg.call(tip);
+      }
+
+
+      /**
+       * 
+       */
+      function plotHours(res, filter) {
+        $('#hoursAccessChart').empty();
+        var signal = [];
+        res.data.hours.forEach(function (d) {
+          if (d.d !== undefined) {
+            if (signal[d.d] === undefined) {
+              signal[d.d] = { d: d.d, count: 0 };
+            }
+            if (filter.group.indexOf(d.g) !== -1) {
+              signal[d.d].count += d.sum;
+            }
+          }
+        });
+        var tmp = [];
+        signal.forEach(function (d) {
+          tmp.push(d);
+        });
+        signal = tmp;
+        var
+          margin = { top: 70, left: 20, bottom: 40, right: 35 },
+          width = $("#hoursAccessChart").width() - margin.left - margin.right, height = width * .9,
+          xmin = d3.min(signal, function (d) { return d.count; }),
+          xmax = d3.max(signal, function (d) { return d.count; }),
+          ymax = d3.max(signal, function (d) { return d.d; }),
+          barheight = height / ymax,
+          days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+          x = d3.scale.linear()
+            .domain([0, xmax])
+            .range([0, width]),
+          y = d3.scale.linear()
+            .domain([1, ymax])
+            .range([0, height])
+          ;
+
+        // Define the axes
+        var xAxis = d3.svg.axis().scale(x)
+          .orient("bottom").ticks(5);
+
+        var yAxis = d3.svg.axis().scale(y)
+          .orient("left").ticks(24);
+
+        // Adds the svg canvas
+        var svg = d3.select('#hoursAccessChart')
+          .append("svg")
+          .attr("width", width + margin.left + margin.right)
+          .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+          .attr("transform",
+            "translate(" + margin.left + "," + margin.top + ")");
+
+        var bars = svg.selectAll(".bar")
+          .data(signal)
+          .enter()
+          .append("g")
+          ;
+
+        // Tooltip
+        var tip = d3.tip()
+          .attr('class', 'd3-tip')
+          .direction('se')
+          .offset([-10, 0])
+          .html(function (d, i) {
+            return arr = [
+              "Events: " + d.count
+            ].join('<br>');
+          });
+
+        bars.append("rect")
+          .attr("class", "bar main-chart-color")
+          .attr("y", function (d) { //alert(JSON.stringify(d))
+            return (y(d.d) - (barheight / 2));
+          })
+          .attr("height", barheight)
+          .attr("x", 0)
+          .attr("width", function (d) {
+            return x(d.count);
+          })
+          .on('mouseover', tip.show)
+          .on('mouseout', tip.hide)
+          ;
+
+        // Add Axis
+        svg.append("g").attr("class", "x axis").attr("transform", "translate(0," + (height + 5) + ")").call(xAxis);
+        svg.append("g").attr("class", "y axis").attr("transform", "translate(0, 0)").call(yAxis);
+
+        // Title
+        svg.append("text")
+          .attr("x", (width / 2))
+          .attr("y", 0 - (margin.top / 2))
+          .attr("text-anchor", "middle")
+          .attr("class", "chart-title")
+          .text(res.meta.hours.title)
+          ;
+
+        svg.append("text") // x
+          .attr("text-anchor", "middle")  // this makes it easy to centre the text as the transform is applied to the anchor
+          .attr("transform", "translate(" + (width / 2) + "," + (height + margin.bottom) + ")")  // centre below axis
+          .text(res.meta.hours.x_dimension);
+
+        svg.call(tip);
+      }
+
+
+      /**
+       * 
+       */
+      function plotDrop(res, filter) {
+        $('#dropAccessChart').empty();
+        var signal = [];
+        res.data.drop.forEach(function (d) {
+          if (filter.group.indexOf(parseInt(d.g, 10)) !== -1) {
+            if (d.min === d.max) {
+              d.max = d.max + 3;
+            }
+            signal.push(d);
+          }
+        });
+        var
+          margin = { top: 30, left: 50, bottom: 34, right: 35 },
+          width = $("#dropAccessChart").width() - margin.left - margin.right, height = 300,
+          xmin = d3.min(signal, function (d) { return d.min; }),
+          xmax = d3.max(signal, function (d) { return d.max; }),
+          ymax = signal.length,
+          barheight = 10,
+          x = d3.scale.linear()
+            .domain([xmin, xmax])
+            .range([0, width]),
+          y = d3.scale.linear()
+            .domain([0, ymax])
+            .range([0, height]),
+          z = d3.scale.ordinal()
+            .range(["#98abc5", "#8a89a6", "#7b6888", "#6b486b", "#a05d56", "#d0743c", "#ff8c00"])
+          ;
+
+        // Define the axes
+        var xAxis = d3.svg.axis().scale(x)
+          .orient("bottom").ticks(10);
+
+        var yAxis = d3.svg.axis().scale(y)
+          .orient("left").ticks(0);
+
+        // Tooltip
+        var tip = d3.tip()
+          .attr('class', 'd3-tip')
+          .direction('se')
+          .offset([-10, 0])
+          .html(function (d, i) {
+            return arr = [
+              "n: " + i,
+              "Group: " + d.g,
+              "User: " + d.u,
+              "Begin: " + d.min + 'd',
+              "End: " + d.max + 'd',
+            ].join('<br>');
+          });
+
+        // Adds the svg canvas
+        var svg = d3.select('#dropAccessChart')
+          .append("svg")
+          .attr("width", width + margin.left + margin.right)
+          .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+          .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        var bars = svg.selectAll(".bar")
+          .data(signal)
+          .enter()
+          .append("g")
+          ;
+
+        bars.append("rect")
+          .attr("class", "bar")
+          .attr("x", function (d) {
+            return x(d.min);
+          })
+          .attr("y", function (d, i) { //alert(JSON.stringify(d)+'__'+i)
+            return y(i) - (barheight / 2);
+          })
+          .attr("height", barheight)
+          .attr("width", function (d) {
+            return x(d.max - d.min);
+          })
+          .attr("fill", function (d) { return z(parseInt(d.g, 10)); })
+          .on('mouseover', tip.show)
+          .on('mouseout', tip.hide)
+          ;
+
+        // Add the X Axis
+        svg.append("g").attr("class", "x axis").attr("transform", "translate(0," + height + ")").call(xAxis);
+        svg.append("g").attr("class", "y axis").call(yAxis);
+
+        // Title
+        svg.append("text")
+          .attr("x", (width / 2))
+          .attr("y", 0 - (margin.top / 2))
+          .attr("text-anchor", "middle")
+          .attr("class", "chart-title")
+          .text(res.meta.drop.title)
+          ;
+
+        // Axis label
+        svg.append("text") // y
+          .attr("text-anchor", "middle")  // this makes it easy to centre the text as the transform is applied to the anchor
+          .attr("transform", "translate(" + (-10) + "," + (height / 2) + ")rotate(-90)")  // text is drawn off the screen top left, move down and out and rotate
+          .text(res.meta.drop.y_dimension);
+
+        svg.append("text") // x
+          .attr("text-anchor", "middle")  // this makes it easy to centre the text as the transform is applied to the anchor
+          .attr("transform", "translate(" + (width / 2) + "," + (height + margin.bottom - 3) + ")")  // centre below axis
+          .text(res.meta.drop.x_dimension + ' (' + res.meta.drop.x_unit + ')');
+
+        svg.call(tip);
+      }
+
+ 
+
+    </script>
+
+
+    <% include footer %>

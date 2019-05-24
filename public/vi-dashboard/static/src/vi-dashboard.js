@@ -1,4 +1,4 @@
-var mainColor = '#5f89ad';
+var mainColor = '#5f89ad'; //blue
 
 /*
  * Pivots two dimensions of the given chart object
@@ -26,8 +26,10 @@ function pivotDimensions(obj, first, second) {
 }
 
 
-/*
- * chartType, selector, indepVar, depVar, colors, margins
+/**
+ * DC.js util to create filter charts. 
+ * @param obj (Object) chartType, selector, indepVar, depVar, colors, margins
+ * @param ndx 
  */
 function addFilterChart(obj, ndx) {
     var
@@ -51,7 +53,6 @@ function addFilterChart(obj, ndx) {
             break;
     }
     chart
-
         .dimension(dimension)
         .group(group)
         .colors(colors)
@@ -66,8 +67,8 @@ function addFilterChart(obj, ndx) {
 }
 
 
-/*
- * Resets all charts
+/**
+ * Observer
  */
 function Observer() {
 
@@ -79,28 +80,35 @@ function Observer() {
 
     this.resetCharts = function () {
         for (var i = 0; i < this.charts.length; i++) {
+            console.log(this.charts[i])
             this.charts[i].filterAll();
         }
         dc.redrawAll();
     };
 
 
-};
+}
 
-/*
+/** 
  * Select filter
- **/
-function select_filter(obj, select_all) { 
-    if(obj.items.length < 2){
-        return;
-    }
+ * @param obj (Object) See example:
+ *  { dim: 'video', type: 'checkbox', items: file_keys, selector: '#video-select' }, true
+ *  { dim: 'group', type: 'checkbox', items: group_keys, selector: '#group-select' }, true
+ * @param select_all (Boolean) predefined selection of all options
+ * @param callback (Function) Callback function that will apply the filter settings
+ */
+function select_filter(obj, select_all, callback) {
     var
         sel = [],
         out = '',
-        name = obj.selector.replace(/#./g, '') + '-group',
+        // sg korrektur -         name = obj.selector.replace(/#./g, '') + '-group',
+        name = obj.selector.replace(/#/g, '') + '-group',
         yAxisLabel = 'views'
         ;
-    select_all = select_all === undefined || null ? false : select_all;
+    // console.log("select_filter - name: ", name); // -> Rewatching: group-select-group
+
+    select_all = select_all === undefined || null ? false : select_all; // true
+    
     $.each(obj.items, function (i, val) {
         var label = (obj.labels === undefined ? obj.items[i] : obj.labels[i])
         sel = [
@@ -110,29 +118,53 @@ function select_filter(obj, select_all) {
             '</label>',
             '<br />'
         ];
-        out += sel.join('');
+        out += sel.join('');   
     });
-    $(obj.selector).html('<h4>'+obj.label+'</h4>');
-    $(obj.selector).append($(out));
+
+    $(obj.selector).html($(out));
 
     $(function () {
-        //if you have any radio selected by default
-        lastSelected[obj.dim] = $('[name="' + name + '"]:checked').val();
+        //if you have any RADIO OR CHECKBOXES selected by default
+        // vorher - lastSelected[obj.dim] = $('[name="' + name + '"]:checked').val();
+        // lastSelected[obj.dim] = $("[name='" + name + "']:checked").val();
+        // console.log("select_filter - lastSelected[obj.dim] 1a: ", lastSelected[obj.dim]);
+
+        // SG - NEU - damit auch die Mehrfachwerte einer default-Checkbox berücksichtigt werden
+        let preValues = [];
+        $.each($("input[name='" + name + "']:checked"), function () {
+            preValues.push($(this).val());
+        });
+        lastSelected[obj.dim] = preValues.toString();
+        //console.log("select_filter - lastSelected[obj.dim] 1b: ", lastSelected[obj.dim]);
     });
+    
     $(document).on('click', '[name="' + name + '"]', function () {
+
         if (obj.type === 'radio' && lastSelected[obj.dim] != $(this).val() && typeof lastSelected[obj.dim] != "undefined") {
-            lastSelected[obj.dim] = $(this).val();
+            
+            // sg - lastSelect[obj.dim] -> aktuelle Auswahl z.B. lastSelected.group = 97
+            lastSelected[obj.dim] = $(this).val(); 
+            //console.log("select_filter - lastSelected[obj.dim] 2: ", lastSelected[obj.dim]);
+
+            // sg neu - fehlender Parameter obj.dim.third für dc color-coding
+            // obj.dim.third = 2;
+
+            // sg - y-Label: falls scope, sonst "views"
             yAxisLabel = obj.dim === 'scope' ? obj.ylabel[obj.items.indexOf($(this).val())] : yAxisLabel;
-            loadData(obj, lastSelected, yAxisLabel);
+            //console.log("select_filter - yAxisLabel: ", yAxisLabel);
+
+            callback(obj, lastSelected, yAxisLabel);
+        
         } else if (obj.type === 'checkbox') {
             var values = [];
+            // sg - name = "video-select-group" || "group-select-group"
             $.each($("input[name='" + name + "']:checked"), function () {
                 values.push($(this).val());
             });
+            // sg - lastSelected[video] oder lastSelected[group] wird gefüllt; die jeweils andere Property bleibt erhalten
             lastSelected[obj.dim] = values.toString();
-            loadData(obj, lastSelected, yAxisLabel);
+            callback(obj, lastSelected, yAxisLabel);
         }
-
     });
 }
 
@@ -152,10 +184,10 @@ $(document).ready(function () {
               crossDomain: true
             }
         }, function (err, t) {
-            $(".title").localize();
+            /*$(".title").localize();
             $("#mainGroup").localize();
             $("#chartPeaks").localize();
-            $("#chartCordtra").localize();
+            $("#chartCordtra").localize();*/
             
         });
 

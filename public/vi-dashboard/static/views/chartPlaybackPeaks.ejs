@@ -1,7 +1,9 @@
 <% include layout %>
 
   <div class="row" id="chartPeaks">
-    <div class="main-chart col-md-9">
+
+    <!-- MAIN -->
+    <div id="main-chart" class="main-chart col-lg-9 col-md-9 col-xs-9">
       <h3 class="title">Playback peaks <span class="note"></span></h3>
       <hr>
       <div id="mainPeakChart"></div>
@@ -12,7 +14,8 @@
       </div>
     </div>
 
-    <div class="filter-area col-md-3">
+    <!-- FILTER -->
+    <div class="filter-area col-lg-3 col-md-3 col-xs-3">
       <h4>FILTER</h4>
       <div class="">
         <h5>Groups</h5>
@@ -27,6 +30,7 @@
         <div id="scope-select"></div>
       </div>
     </div>
+
   </div>
 
   <% include scripts %>
@@ -49,7 +53,7 @@
       // charts
       var
         margin = { top: 10, left: 20, bottom: 30, right: 35 },
-        width = ( $('#mainPeakChart').width() - margin.left - margin.right),//920,
+        width = document.getElementById('main-chart').offsetWidth,
         height = 350,
         height2 = 30
         ;
@@ -79,13 +83,18 @@
         var isRelative = filter['scope'].match(/-relative/) === null ? 0 : 1;
         filter['scope'] = filter['scope'].replace(/-relative/, '');
 
+        /**
+         * VIEWS/PEAK-Chart
+        */
         d3.json("/data/playback-" + filter['scope'] + "-peaks/video/" + filter['video'] + '/group/' + (filter['group'] === undefined ? '-' : filter['group']), function (error, res) {
+          
           json = res.data;
           const t1 = performance.now();
 
           $('#mainPeakChart').empty();
           if (error) console.warn(error);
 
+          // sg - data-variable für d3
           var signal = json.signal;
           if (isRelative) {
             signal = signal.map(function (x) { return (x / json.unique) * 100; });
@@ -264,12 +273,13 @@
 
 
         /**
-         * 
+         * SPEED-Chart
          */
         d3.json("/data/playback-speed/video/" + filter['video'] + '/group/' + (filter['group'] === undefined ? '-' : filter['group']), function (error, json) {
           $('#mainSpeedChart').empty();
           if (error) console.warn(error);
 
+          // sg - data-variable für d3
           var signal = json.signal;
 
           var peaks = findPeaks(signal);

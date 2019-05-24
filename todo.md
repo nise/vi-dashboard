@@ -1,12 +1,31 @@
 
-## bugfixes
-* Gastel
-* Load HPI-Data
+# VIANDA
+
+purpose:
+- visualize everything that is possible?
+- providing a reserach tool for video log data?
+ - interactive charts
+ - support data cube interactions?
+ - adaptive chart presentation
+- providing a dashboard configurator to be used in other learning environments
+ - logstore interface for incoming data (xapi, csv, supporting different data formats)
+ - embed customized dashboards
+ 1. create a new/empty dashboard
+ 2. define input source (API binding, file) and save the data
+ 3. adaptive presentation of possible charts for the given data input
+ 4. select charts and filters (structured by its focus: video, watching, interaction, annotation), 
+ 5. arrange charts on a dashboard (e.g on a matrix, on a tabbed pane)
+ 6. save and provide embed code
+
+Every chart needs to be implemented as a plugin containing server and client code.
+ 
+ 1. die Tauglichkeit der einzelnen Charts evaluieren (=> Hermes)
+ 2. die Tauglichkeit als Forschungstool testen
+ 3. 
 
 
 ## Roadmap
 * single page app
-* optimize perfomance: lighthouse <url> 
 * modularize js code from views and compress it
 * change scale
 * rotate dimensions
@@ -47,20 +66,18 @@ SCM
 * playback-hist.ejs filters not working
 
 
+
 ---
 # Access
-- $min error
-- day of year should be month
-- events over time not working
 **done** 
 - xxx bug at group switch
 - number of seperate weeks out of the total number of weeks the cours lasts
 - number of separate days out of the total number of days
 - estimated total number of hours spend on the course
 - distribution of start day total and per phase
-- drop-in phase, drop-out phase
+
 - ip_country
- 
+- **done** drop-in phase, drop-out phase 
 - **done** total number of clicks over total time
 - **done** access by day of year, weekday, hour of day, ...
 - **done** drop-in, drop-out
@@ -73,7 +90,10 @@ SCM
 		
 ## Playback Peaks
  **done**
+ * resize is not working
  * smooth area/bars
+ * bug: absolute number of users == relative number of users / identical chart
+ * cut outliers
  * compare groups and videos
  * @speed: vertical line
  * **done** retention rate: ratio of users who have watched a video segment (x:segment, y:views)	
@@ -127,7 +147,7 @@ SCM
 
 ------------------------------------------
 # Playback Interactions	
-## General interactions / Histograms of interaction
+## Histograms of interaction
 **done**
 source: Branch1994
 * xxx filter by group and video
@@ -148,10 +168,9 @@ source: Branch1994
 
 ## Number of Interactions by type/context
 **done**
-* xxx: currently not working
+* **done**  filter
 * refactor
 * fix main chart label !!!
-* at "common interaction" fix label color
 * chose better color schema
 * s,r user
 * r video
@@ -199,7 +218,6 @@ source: Branch1994
  * variants
    * time, video-file, context/group
    * time, video-id, context/group
-* done: metrics
 
 ## Group Comarison Semaphore
 **done**

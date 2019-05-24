@@ -1,0 +1,1052 @@
+<% include layout %>
+
+    <!-- HTML for the metadata 1) Status-Übersicht -->
+    <div class="row" id="partStatus">
+        <div class="col-md-12">
+
+            <div class="col-md-2">
+                <div class="headline" id="statusHead">1) Status-Übersicht</div>
+            </div>
+            <div class="col-md-2">
+                <div class="status" id="statusUserID">Benutzer-ID: </div>
+            </div>
+            <div class="col-md-2">
+                <div class="status" id="statusLastData">letzte Lerndaten: </div>
+            </div>
+            <div class="col-md-2">
+                <div class="status" id="statusWatching">Gesamte Betrachtungszeit (HH:MM): </div>
+            </div>
+            <div class="col-md-2">
+                <div class="status" id="statusProgress">Betrachtungsfortschritt: </div>
+            </div>
+
+        </div>
+    </div>
+    <hr>
+    <!-- -------------------------------------------------------------- -->
+
+    <!-- HTML for the timespent visualizations 2) Darstellung des Lernprozesses -->
+    <div class="row" id="partTimespent">
+        <!-- 10/12 for the Visualizations -->
+        <div class="main-chart col-md-10">
+
+            <div class="col-md-12">
+
+                <h4 class="headline">2) Darstellung des Lernprozesses</h4>
+
+                <div id="charts">
+                    <div id="drilldown-chart" class="chart">
+                        <div class="title">Betrachtungen nach Datum in Sekunden</div>
+                    </div>
+                    <div id="weekday-chart" class="chart">
+                        <div class="title">nach Wochentag</div>
+                    </div>
+                    <div id="date-chart" class="chart">
+                    </div>
+                    <!-- not visable, needs to be calculated for the current filter -->
+                    <div id="watchingTime-chart" class="chart">
+                        <div class="title">WatchtingTime</div>
+                    </div>
+                </div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div id="totals">
+                    <div>Betrachtungsdauer in HH:mm</div>
+                    <div>Zeitraum der aktuellen Auswahl: <span id="active">-</span></div>
+                    <div><span class="dc-data-count"></span></div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- 2/12 for the Filter -->
+        <div class="col-md-2">
+            <div class="">
+                <h5>Videoauswahl:</h5>
+                <div id="video-select_1"></div>
+            </div>
+
+        </div>
+
+    </div>
+    <hr>
+    <!-- -------------------------------------------------------------- -->
+
+    <!-- HTML for the peaks visualizations 3) Betrachtungen innerhalb eines Videos -->
+    <div class="row" id="partPeaks">
+
+        <!-- 10/12 for the Visualizations -->
+        <div class="main-chart col-md-10">
+
+            <!-- #2 PEAKS -->
+            <div class="col-md-12">
+                <h3 class="headline">3) Betrachtungen innerhalb eines Videos</h3>
+                <div id="chartPeaks" class="row"></div>
+            </div>
+
+        </div>
+
+        <!-- 2/12 for the Filter -->
+        <div class="col-md-2">
+            <!-- <h4>Filter 2:</h4> -->
+            <div class="">
+                <h5>Videoauswahl:</h5>
+                <div id="video-select_2"></div>
+                <h5>Sicht</h5>
+                <div id="scope-select"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <style>
+        /* all the HEADLINES */
+        
+        .headline {
+            font: 18px sans-serif;
+            font-weight: bold;
+        }
+        /* STATUS */
+        
+        .statusData {
+            font: 16px sans-serif;
+            font-weight: bold;
+            color: red;
+        }
+        /* TIMESPENT */
+        
+        .x {
+            font: 18px sans-serif;
+        }
+        
+        .y {
+            font: 18px sans-serif;
+        }
+        
+        .xLabel {
+            font: 12px sans-serif;
+        }
+        
+        .yLabel {
+            font: 12px sans-serif;
+        }
+        
+        .legend {
+            font: 12px sans-serif;
+        }
+        
+        #charts {
+            padding: 10px 0;
+        }
+        
+        .chart {
+            display: inline-block;
+            height: 150px;
+            margin-bottom: 20px;
+        }
+        
+        #date-chart {
+            width: 1000px;
+        }
+        
+        #date-chart g.y {
+            /* hide the y-axis */
+            display: none;
+        }
+        
+        #weekday-chart {
+            width: 300px;
+        }
+        /* total and selected events */
+        
+        #totals {
+            text-align: right;
+            margin-top: 1em;
+            margin-left: 10px;
+            font-weight: bold;
+            bottom: 10px;
+            /*   width: 900px;            */
+        }
+        /* selected events in HH:MM */
+        
+        #active {
+            text-align: right;
+            margin-top: 1em;
+            margin-left: 10px;
+            font: 16px sans-serif;
+            font-weight: bold;
+            color: steelblue;
+            /*   width: 900px;            */
+        }
+        /* PEAKS CSS */
+        
+        .d3-tip {
+            font-size: small;
+            font-weight: bold;
+        }
+        
+        .chart-title {
+            font-size: medium;
+            font-weight: bold;
+        }
+        
+        .chart-title-sub {
+            font-size: small;
+        }
+    </style>
+
+    <!----------------------------------------------------------->
+    <% include scripts %>
+        <!----------------------------------------------------------->
+        <script>
+            var
+                videos = <%-JSON.stringify(videos, null, '\t') %>,
+                lastSelected = {},
+                obj = {};
+
+            // init filters
+            // for part timespent
+            select_filter({
+                    dim: 'video',
+                    type: 'checkbox',
+                    items: videos,
+                    selector: '#video-select_1'
+                },
+                true,
+                loadData
+            );
+            // for part peaks
+            select_filter({
+                    dim: 'video',
+                    type: 'radio',
+                    items: videos,
+                    selector: '#video-select_2'
+                }, undefined,
+                loadData2
+            );
+            select_filter({
+                dim: 'scope',
+                type: 'radio',
+                items: ['total', 'user', 'most'],
+                labels: ['Anzahl Betrachtungen (unabhängig der Lernenden)', 'Anzahl Lernender', 'Segmente, welche mindestens 75% der Lernenden betrachtet haben'],
+                selector: '#scope-select',
+                ylabel: ['views', 'number of users who watched the segment', 'test-most']
+            }, undefined, loadData2);
+
+            //        indianred,  azureblue,  brightgreen, cafenoir     electricblue
+            days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
+            colorsPeaks = ['#ffff00', '#FF0000'];
+            //              personal, social
+
+            // initial loadData - load the first video - loadData(obj, filter)
+            loadData(obj, {
+                video: videos
+            });
+            loadData2(obj, {
+                scope: 'total',
+                video: videos[0]
+            });
+
+
+            /**
+             ***************** STATUS-Row **************************** 
+             **/
+
+            /**
+             * 0: load data from json
+             **/
+
+            d3.json("/data/learner-dashboard-user5/status", function(error, res) {
+
+                console.log("---STATUS---");
+                console.log("STATUS - d3json res: ", res);
+
+                //console.log("res.data.status: ", res.data);
+                // userStatus_completeWatching: -> 0: {user: 13, sum: 22495}
+                // userStatus_uniqueWatching: -> 0: {user: 13, sum: 12115}
+
+                /**
+                 *  DATA PREPARATION****************************
+                 **/
+
+
+                //  videometa: {   e2script_kickoff.mp4: "0:49:02", 
+                //                 e2script_lecture1_improved.mp4: "0:46:31",
+                //                 e2script_lecture2_improved.mp4: "0:49:58", 
+                //                 e2script_lecture3_improved.mp4: "0:53:10", 
+                //                 e2script_lecture4_improved.mp4: "0:43:48",
+                //                 e2script_lecture5_improved.mp4: "0:42:58"
+                //             }
+
+                // calculate the hole length of all videos together
+                var formatTimeInput = d3.time.format("%-I:%M:%S");
+
+                var lengthOfAllVideos = 0; // in seconds
+                for (var key in res.videometa) {
+
+                    if (res.videometa.hasOwnProperty(key)) {
+                        // filter not existing video_file
+                        if (key != "e2script_kickoff.mp4") {
+                            var obj = res.videometa;
+                            var videolength = formatTimeInput.parse(obj[key]);
+                            var getSeconds = d3.time.format("%S");
+                            var getMinutes = d3.time.format("%M");
+                            var totalVideolength = parseInt(getSeconds(videolength)) + parseInt(getMinutes(videolength) * 60)
+                            lengthOfAllVideos = lengthOfAllVideos + totalVideolength;
+                        }
+
+                    }
+                }
+                // console.log("Length of all Videos: ", lengthOfAllVideos); // 14.185 seconds
+
+                // create date-object from utc in seconds
+                var lastAccessFormat = d3.time.format("%d.%m.%Y - %H:%M");
+                // convert date-object to custom date-String
+                lastAccess = lastAccessFormat(new Date(res.data.userStatus_lastAccess[0].maxUtc));
+
+                // convert watchingtime
+                var completeWatchingInSeconds = res.data.userStatus_completeWatching[0].sum;
+                var completeWatching =
+                    // hours
+                    (parseInt((completeWatchingInSeconds / 60) / 60) +
+                        ":" +
+                        // minutes with leading 0 if smaller 10
+                        (parseInt((completeWatchingInSeconds / 60) % 60) < 10 ? "0" : "") +
+                        parseInt((completeWatchingInSeconds / 60) % 60));
+
+                var statusUserID = d3.select('#statusUserID');
+                statusUserID.append("text")
+                    .attr("class", "statusData")
+                    .text("  " + res.data.userStatus_completeWatching[0].user);
+
+                var statusUserID = d3.select('#statusLastData');
+                statusUserID.append("text")
+                    .attr("class", "statusData")
+                    .text("  " + lastAccess);
+
+                var statusUserID = d3.select('#statusWatching');
+                statusUserID.append("text")
+                    .attr("class", "statusData")
+                    .text("  " + completeWatching);
+
+                var statusUserID = d3.select('#statusProgress');
+                statusUserID.append("text")
+                    .attr("class", "statusData")
+                    .text("  " + parseInt(
+                            (res.data.userStatus_uniqueWatching[0].sum /
+                                lengthOfAllVideos) * 100) +
+                        "%");
+
+            });
+
+            /**
+             ***************** TIMESPENT **************************** 
+             **/
+            function loadData(obj, filter) {
+
+
+                console.log("TIMESPENT - loadDataFunction: ", " obj: ", obj, " filter: ", filter);
+                // -> obj:  {}__proto__: Object  filter:  {video: "e2script_lecture1_improved.mp4"}
+
+                /**
+                 * 0: load data from json
+                 **/
+
+                d3.json("/data/learner-dashboard-user5/timespent-video/video/" + filter['video'], function(error, res) {
+                        console.log('Path: /data/learner-dashboard-user5/timespent-video/video/' + filter['video']);
+                        console.log("---TIMESPENT---");
+                        console.log("TIMESPENT - d3json res: ", res);
+                        console.log("res.data.timespentVideo: ", res.data.timespentVideo);
+                        // {   user: 20,
+                        //     week: 44,
+                        //     dow: 6,
+                        //     video: 'e2script_lecture1_improved.mp4',
+                        //     date: 2015-10-30T15:32:11.215Z
+                        //     utc: 1446219135237 },
+
+                        let the_data = res.data.timespentVideo;
+
+                        /**
+                         *  DATA PREPARATION****************************
+                         **/
+
+
+                        // FORMATTERS *****************
+
+                        // Define the de-locales
+                        var de_DE = {
+                            "decimal": ",",
+                            "thousands": ".",
+                            "grouping": [3], // 3 for thousand
+                            "dateTime": "%A, le %e %B %Y, %X",
+                            "currency": ["", "€"],
+                            "date": "%d/%m/%Y",
+                            "time": "%H:%M:%S",
+                            "periods": ["AM", "PM"],
+                            "days": ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"],
+                            "shortDays": ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"],
+                            "months": ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"],
+                            "shortMonths": ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dez"],
+
+                        };
+                        var deLocale = d3.locale(de_DE);
+
+                        // Define your prefered formatters
+                        var formatMillisecond = deLocale.timeFormat(".%L"),
+                            formatSecond = deLocale.timeFormat(":%S"),
+                            formatMinute = deLocale.timeFormat("%H:%M"),
+                            formatHour = deLocale.timeFormat("%H:00"), // 16:00
+                            formatDay = deLocale.timeFormat("%a %d. %b"),
+                            formatDay_2 = deLocale.timeFormat("%d. %b"), // 01. Jan
+                            formatWeek = deLocale.timeFormat("%b %d"),
+                            formatMonth = deLocale.timeFormat("%B"),
+                            formatYear = deLocale.timeFormat("%Y")
+                        formatNumber = deLocale.numberFormat(",.");;
+                        // console.log("comma-test: ", deLocale.numberFormat(222222222));
+                        // -> 222.222.222
+
+                        // multi-Formatter-Function
+                        // for the drilldown-Chart
+                        function multiFormat_drilldownChart(date) {
+                            return (
+                                //      d3.time.second(date) < date ? formatMillisecond
+                                //    : d3.time.minute(date) < date ? formatSecond
+                                //    : d3.time.hour(date) < date ? formatMinute
+                                //      d3.time.day(date) < date ? formatHour
+                                d3.time.month(date) < date ? (d3.time.week(date) < date ? formatDay : formatWeek) :
+                                d3.time.year(date) < date ? formatMonth :
+                                formatYear)(date);
+                        }
+
+                        // for the date-Chart
+                        function multiFormat_dateChart(date) {
+                            return (
+                                //      d3.time.second(date) < date ? formatMillisecond
+                                //    : d3.time.minute(date) < date ? formatSecond
+                                //    : d3.time.hour(date) < date ? formatMinute
+                                //      d3.time.day(date) < date ? formatHour
+                                d3.time.month(date) < date ? (d3.time.week(date) < date ? formatDay : formatWeek) :
+                                d3.time.year(date) < date ? formatMonth :
+                                formatYear)(date);
+                        }
+
+                        function multiFormat_month(date) {
+                            return formatMonth(date);
+                        }
+
+                        function multiFormat_day(date) {
+                            return formatDay(date);
+                        }
+
+                        var color_range = ['yellow', 'blue', 'purple', 'red', 'orange', 'green', 'black'];
+
+                        // ???
+                        var formatTimeYaxis = d3.time.format("%H:%M");
+                        //     date: 2015-10-30T15:32:11.215Z
+                        var formatDateImport = d3.time.format("%Y-%m-%dT%H");
+                        var formatWeekday = d3.time.format("%a");
+
+                        //  the_data per EVENT
+                        the_data.forEach(function(d, i) {
+                            d.index = i;
+                            d.date = new Date(d.date); // convert date-string to date-object
+                            d.month = d3.time.month(d.date);
+                            temp = 1;
+                            d.sum = temp; // create 
+                        })
+
+                        console.log("the_data: ", the_data);
+
+                        console.log("getday-test: ", the_data[0].date.getDay());
+                        console.log("Tag Datensatz 0: ", the_data[0].date);
+
+                        /**
+                         *  create the dc.js chart objects ****************************
+                         **/
+
+                        var drilldownChart = dc.lineChart("#drilldown-chart")
+                        var dateChart = dc.barChart("#date-chart");
+                        var dayOfWeekChart = dc.rowChart("#weekday-chart");
+                        var watchingTimeChart = dc.rowChart("#watchingTime-chart"); // hidden - to calc current selection
+                        var watchingCount = dc.dataCount('.dc-data-count'); // to reset all filters
+
+                        /**
+                         *  run the_data through the crossfilter *********************
+                         **/
+
+                        var facts = crossfilter(the_data);
+                        var all = facts.groupAll(); // for calculation watchingtime
+
+                        /**
+                         *  create the dimensions ****************************
+                         **/
+
+
+                        // for the drilldown-chart *****************
+
+
+                        // // Dimension by month & group()
+                        // var moveMonths = facts.dimension(function (d) { return d.month; });
+                        // var EventsPerMoveMonths = moveMonths.group().reduceSum(function (d) { return d.sum });
+
+
+                        // for the date-chart **********************
+                        var volumeByHour = facts.dimension(function(d) {
+                            return d3.time.hour(d.date)
+                        });
+                        // map/reduce to group sum
+                        var volumeByHourGroup = volumeByHour.group().reduceCount(function(d) {
+                            return d.date
+                        });
+
+                        // for the date-chart **********************
+                        var volumeByDate = facts.dimension(function(d) {
+                            return d3.time.day(d.date)
+                        });
+                        // map/reduce to group sum
+                        var volumeByDateGroup = volumeByDate.group().reduceCount(function(d) {
+                            return d.date
+                        });
+
+                        // for the weekday-chart ***********************
+                        var volumeByWeekday = facts.dimension(function(d) {
+                            var day = d.date.getDay(); // or easier with function(d) { return d.dow }
+                            switch (day) {
+                                case 0:
+                                    return "0.Sonntag";
+                                case 1:
+                                    return "1.Montag";
+                                case 2:
+                                    return "2.Dienstag";
+                                case 3:
+                                    return "3.Mittwoch";
+                                case 4:
+                                    return "4.Donnerstag";
+                                case 5:
+                                    return "5.Freitag";
+                                case 6:
+                                    return "6.Samstag";
+                            }
+                        });
+                        var volumeByWeekdayGroup = volumeByWeekday.group().reduceSum(function(d) {
+                            return +d.sum
+                        });
+
+                        // for the hidden chart for calcuation of the current filter-selection
+                        var watchingTimeBySelection = facts.dimension(function(d) {
+                                return d.sum
+                            }),
+                            watchingTimeBySelectionSum = watchingTimeBySelection.group()
+                            .reduceSum(function(d) {
+                                return d.sum
+                            }),
+                            topSum = watchingTimeBySelectionSum.top(1);
+                        console.log("topSum key: ", topSum[0].key);
+                        console.log("topSum value: ", topSum[0].value);
+
+                        // test HH:MM calculation
+                        var testSum = (parseInt((topSum[0].value / 60) / 60) +
+                            ":" +
+                            (parseInt((topSum[0].value / 60) % 60) < 10 ? "0" : "") +
+                            parseInt((topSum[0].value / 60) % 60)
+                        )
+                        console.log("testSum: ", testSum);
+
+                        /**
+                         *  create the dimensions ****************************
+                         **/
+
+                        // DRILLDOWN graph - bar
+                        drilldownChart
+                            .width(1160)
+                            .renderArea(true) // show colored area beneath the line
+                            .height(150)
+                            .margins({
+                                top: 10,
+                                right: 20,
+                                bottom: 20,
+                                left: 40
+                            })
+                            .dimension(volumeByDate) // by day! for day-selection
+                            .group(volumeByDateGroup)
+                            //   .transitionDuration(200) // animation speed
+                            .elasticY(true) // dynamic scale of the y-axis
+                            .brushOn(false) // brush-filter
+                            //.mouseZoomable(true)
+                            .x(d3.time.scale().domain([new Date(2015, 09, 30), new Date(2016, 01, 28)])) // scale and domain of the graph
+                            .xUnits(d3.time.hours) // one bar stands for == one day
+                            //  .centerBar(true) // put rect central on the day
+                            .renderHorizontalGridLines(true)
+                            // link to the zoom of the dateChart
+                            .rangeChart(dateChart) // RANGE-CHART
+                            // .round(d3.time.days.round)
+                            // .xUnits(d3.time.months)   // for the rects
+                            // .xAxis().ticks(10).tickFormat(multiFormat)
+                            .xAxis().tickFormat(multiFormat_drilldownChart);
+
+                        // for 
+                        drilldownChart
+                            .yAxis().tickFormat(formatNumber);
+
+
+                        // TIMELINE graph - line
+                        dateChart.width(1160)
+                            .height(100)
+                            .margins({
+                                top: 10,
+                                right: 20,
+                                bottom: 20,
+                                left: 40
+                            })
+                            .dimension(volumeByDate) // same dimension like drilldownChart for selection!
+                            .group(volumeByDateGroup, "Wähle einen Zeitraum um zu zoomen")
+                            .legend((dc.legend().x(800).y(10).itemHeight(10).gap(5)))
+                            //  .transitionDuration(200) // animation speed
+                            .centerBar(true) // put rect central on the day
+                            .barPadding(5)
+                            .gap(5) // selection-gap
+                            .x(d3.time.scale().domain([new Date(2015, 09, 30), new Date(2016, 01, 28)])) // scale and domain of the graph
+                            .round(d3.time.day.round)
+                            .alwaysUseRounding(true) // for bars
+                            // .xUnits(d3.time.day) // one bar stands for == one day
+                            .xAxis().ticks(5).tickFormat(multiFormat_dateChart)
+                            //.yAxis().tickFormat(formatNumber)
+
+                        // legend ---------------
+                        // .brushOn(false)
+                        // .title(d3.text("per Maus einen Zeitraum filtern"))
+                        ;
+
+
+                        // WEEKDAY graph
+                        dayOfWeekChart.width(300)
+                            .height(150)
+                            .margins({
+                                top: 10,
+                                right: 10,
+                                bottom: 20,
+                                left: 40
+                            })
+                            .dimension(volumeByWeekday)
+                            .group(volumeByWeekdayGroup)
+                            // .colorAccessor(function(d) { return d.key; })
+                            // .colors(d3.scale.category10())
+                            // .colors(d3.scale.ordinal().domain(de_DE.days).range(color_range))
+                            .label(function(d) {
+                                return d.key.split(".")[1];
+                            })
+                            .title(function(d) {
+                                return d.value;
+                            })
+                            .elasticX(true) // dynamic scale of the x-axis
+                            .xAxis().ticks(2);
+
+
+                        // watchingTimeBySelection AS rowChart
+                        watchingTimeChart
+                        //  .width(250)
+                        //  .height(150)
+                        //  .margins({top: 10, right: 10, bottom: 20, left: 40})
+                            .dimension(watchingTimeBySelection)
+                            .group(watchingTimeBySelectionSum)
+                            //  .colors(d3.scale.category10())
+                            .label(function(d) { // converting the watchingTime
+                                dummyTitle =
+                                    (parseInt((topSum[0].value / 60) / 60) +
+                                        ":" +
+                                        (parseInt((topSum[0].value / 60) % 60) < 10 ? "0" : "") +
+                                        parseInt((topSum[0].value / 60) % 60)
+                                    );
+                                // push into active-div
+                                var activeDiv = d3.select("#active");
+                                $("#active").empty();
+                                activeDiv
+                                    .append("text")
+                                    .style("font-size", "16px")
+                                    .text(dummyTitle);
+                                $("#watchingTime-chart").empty();
+                                return dummyTitle;
+                            }) // label
+                            //  .elasticX(true)
+                            //  .xAxis().ticks(5);
+                            //    .empty(watchingTimeChart)
+                        ;
+                        //   
+
+                        // DATACOUNT Watching
+                        watchingCount
+                            .dimension(facts)
+                            .group(all)
+                            .html({ // show link to reset all filters, if theres a current selection; else "all"
+                                some: '<a href=\'javascript:dc.filterAll(); dc.renderAll();\'>Alle Filter zurücksetzen</a>',
+                                all: 'Es ist aktuell kein Filter gesetzt'
+                            });
+
+
+                        /**
+                         *  render the charts ****************************
+                         **/
+
+                        dc.renderAll();
+
+                    }) // end timespent
+
+            } // end LoadData()
+
+
+            /**
+             ***************** PEAKS **************************** 
+             **/
+            function loadData2(obj, filter) {
+
+                console.log("PEAKS - filter: ", filter);
+                // d3.json("/data/learner-dashboard-user5/peaks/video/" + filter['video'], function (error, res) {
+
+
+                d3.json("/data/learner-dashboard-user5/peaks-" + filter['scope'] + "/video/" + filter['video'], function(error, res) {
+
+                        // clear the canvas
+                        $("#chartPeaks").empty();
+                        console.log("PEAKS - d3json res: ", res);
+
+                        // const t2a = performance.now(); 
+                        // console.log("t2a-loadData Peaks: ", t2a);
+
+                        console.log("---PEAKS---");
+                        console.log("PEAKS res.data_social: ", res.data_social);
+                        // 0: {v: "e2script_lecture5_improved.mp4", sec: 0, count: 94}
+                        // 1: {v: "e2script_lecture5_improved.mp4", sec: 1, count: 20}
+                        // 2: {v: "e2script_lecture5_improved.mp4", sec: 2, count: 23}
+                        // 3: {v: "e2script_lecture5_improved.mp4", sec: 4, count: 22}
+                        // ...
+                        console.log("PEAKS res.data_personal: ", res.data_personal);
+                        // 0: {v: "e2script_lecture5_improved.mp4", sec: 0, count: 94}
+                        // 1: {v: "e2script_lecture5_improved.mp4", sec: 1, count: 20}
+                        // 2: {v: "e2script_lecture5_improved.mp4", sec: 2, count: 23}
+                        // 3: {v: "e2script_lecture5_improved.mp4", sec: 4, count: 22}
+                        // ...
+
+                        let the_data_social = res.data_social;
+                        let the_data_personal = res.data_personal;
+                        // let videometa = res.videometa;
+                        // console.log("videoMeta: ", videometa);
+                        //   { e2script_kickoff.mp4: "0:49:02"
+                        //     e2script_lecture1_improved.mp4: "0:46:31"
+                        //     e2script_lecture2_improved.mp4: "0:49:58"
+                        //     e2script_lecture3_improved.mp4: "0:53:10"
+                        //     e2script_lecture4_improved.mp4: "0:43:48"
+                        //     e2script_lecture5_improved.mp4: "0:42:58" }
+                        let videolength = res.videometa[the_data_social[0].v];
+                        console.log("88 videolength: ", videolength, res.videometa);
+
+                        let the_data_personalProgressVideo = res.data_progressPersonal[0].count;
+                        console.log("the_data_personalProgressVideo: ", the_data_personalProgressVideo);
+
+                        // DATA PREPARATION 
+
+                        // calculate median and stdev for y-scale-domain depending on scope
+                        var ge = new gauss.Vector(res.data_signals);
+                        var median = Math.ceil(ge.median());
+                        var mean = Math.ceil(ge.mean());
+                        var variance = Math.ceil(ge.variance());
+                        var stdev = Math.ceil(ge.stdev());
+
+                        var maxY = parseInt(mean) + parseInt(stdev);
+
+                        console.log("all rounded upwards!! -> median: ", median, " mean: ", mean, " variance: ", variance, " stdev: ", stdev, " maxY: ", maxY);
+
+                        // 75% overall VS me
+                        var quartiles = ge.quantile(4);
+                        console.log("quartiles: ", quartiles); // -> [12, 14, 17]
+                        var quartile2 = quartiles[2];
+                        //var quartile2 = 100;
+
+
+                        // if scope "total" | "user" VS scope "most"
+
+                        let scope_tickFormat = "";
+                        let scope_ticks = 0;
+
+                        if (filter.scope == "most") {
+
+                            // -> cut off extreme values and set with maxY
+                            the_data_social.forEach(function(d, i) {
+                                if (d != null) {
+                                    let temp = d.count;
+                                    if (temp > quartile2 - 1) {
+                                        d.count = 1;
+                                    } else {
+                                        d.count = 0;
+                                    }
+
+                                }
+                            });
+
+                            the_data_personal.forEach(function(d, i) {
+                                if (d != null) {
+                                    let temp = d.count;
+                                    if (temp > 0) {
+                                        d.count = 1;
+                                    }
+                                }
+                            });
+
+                            // set depanding var's
+                            maxY = 1;
+                            scope_tickFormat = "";
+                            scope_ticks = 1
+
+                        } else {
+
+
+                            // -> cut off extreme values and set with maxY
+                            the_data_social.forEach(function(d, i) {
+                                if (d != null) {
+                                    let temp = d.count;
+                                    if (temp > maxY) {
+                                        d.count = maxY;
+                                    }
+
+                                }
+                            });
+
+                            the_data_personal.forEach(function(d, i) {
+                                if (d != null) {
+                                    let temp = d.count;
+                                    if (temp > maxY) {
+                                        d.count = maxY;
+                                    }
+                                }
+                            });
+
+                            // set depending var's
+                            scope_tickFormat = d3.format(',.');
+                            scope_ticks = 10;
+
+                        };
+
+
+                        // time parsing videolength
+                        var formatTimeInput = d3.time.format("%-I:%M:%S");
+                        console.log(3, videolength)
+                        var maxX_videolength = formatTimeInput.parse(videolength);
+
+                        console.log("videolength_date: ", maxX_videolength);
+                        var getSeconds = d3.time.format("%S");
+                        var getMinutes = d3.time.format("%M");
+                        var seconds = getSeconds(maxX_videolength);
+                        var minutes = getMinutes(maxX_videolength);
+                        console.log("Minutes, Seconds ", minutes, " ", seconds);
+                        var videolengthDecimal = parseInt(seconds) + (minutes * 60);
+                        console.log("videolength_decimal: ", videolengthDecimal);
+
+                        let persVideoProgress = parseInt(((the_data_personalProgressVideo / videolengthDecimal) * 100));
+                        console.log("persVideoProgress: ", persVideoProgress);
+
+                        // Set the dimensions of the canvas / graph
+                        var margin = {
+                                top: 50,
+                                right: 10,
+                                bottom: 35,
+                                left: 60
+                            },
+                            width = $("#chartPeaks").width() - margin.left - margin.right,
+                            height = ($("#chartPeaks").width() * .80) / 3 - margin.top - margin.bottom,
+                            barwidth = 3,
+                            barheight = 10,
+                            maxX = videolengthDecimal;
+                        // maxY = 100;
+                        //  maxY = 
+                        console.log("maxX: ", maxX);
+
+                        var formatTime = d3.time.format("%M:%S"),
+                            formatMinutes = function(d) {
+                                return formatTime(new Date(2012, 0, 1, 0, 0, d));
+                            };
+
+                        // Set the ranges
+                        var x = d3.scale.linear()
+                            .domain([0, maxX])
+                            .range([2, width]) // 2 => to draw the first bar not into the y-axis
+                        ;
+
+                        var y = d3.scale.linear()
+                            .domain([0, maxY]) // maxY calc, see above
+                            //.domain([0, isRelative ? 100 : d3.max(signal)])
+                            //.domain([0, d3.max(the_data_social, function(d) { return d.count; })])  // get max-Value from data
+                            .range([height, 0])
+                            .nice();
+
+                        // Define the axes
+                        var xAxis = d3.svg.axis()
+                            .scale(x)
+                            .orient("bottom")
+                            .tickFormat(formatMinutes);
+                        var yAxis = d3.svg.axis()
+                            .scale(y)
+                            .orient("left")
+                            .tickFormat(scope_tickFormat)
+                            .ticks(scope_ticks);
+
+                        /**
+                         *  CANVAS ******************************
+                         **/
+
+                        // Adds the svg canvas and append a group (g)
+                        var svg = d3.select('#chartPeaks')
+                            .append("svg")
+                            .attr("width", width + margin.left + margin.right)
+                            .attr("height", height + margin.top + margin.bottom);
+
+                        // Tooltip
+                        var tip = d3.tip()
+                            .attr('class', 'd3-tip')
+                            .direction('se')
+                            .offset([-10, 0])
+                            .html(function(d, i) {
+                                var minutes = parseInt(d.sec / 60);
+                                var seconds = ((parseInt((d.sec % 60)) < 10 ? "0" : "") +
+                                    parseInt((d.sec % 60))
+                                );
+                                return arr = [
+                                    "Zeit: " + minutes + ":" + seconds,
+                                    "Anzahl: " + d.count
+                                ].join('<br>');
+                            });
+
+                        // group for social rects
+                        var socialGroup = svg.append("g")
+                            .attr("id", "gSocial_rects")
+                            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+                        var socialBars = socialGroup.selectAll("rect")
+                            .data(the_data_social)
+                            .enter() // data to document
+                            .append("rect") // data becomes tag rect's
+                            .attr("class", "social_rects")
+                            .attr("x", function(d) {
+                                return x(d.sec) - (width / maxX / 2);
+                            })
+                            .attr("y", function(d) {
+                                return y(d.count);
+                            })
+                            .attr("height", function(d) {
+                                return y(0) - y(d.count);
+                            })
+                            .attr("width", (width / maxX))
+                            .attr("fill", colorsPeaks[1])
+                            .on('mouseover', tip.show)
+                            .on('mouseout', tip.hide);
+
+                        // group for personal rects
+                        var personalGroup = svg.append("g")
+                            .attr("id", "gPersonal_rects")
+                            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+                        var personalBars = personalGroup.selectAll("rect")
+                            .data(the_data_personal)
+                            .enter() // data to document
+                            .append("rect") // data becomes tag rect's 
+                            .attr("class", "personal_rects")
+                            .attr("x", function(d) {
+                                return x(d.sec) - (width / maxX / 2);
+                            })
+                            .attr("y", function(d) {
+                                return y(d.count);
+                            })
+                            .attr("height", function(d) {
+                                return y(0) - y(d.count);
+                            })
+                            .attr("width", (width / maxX))
+                            .attr("fill", colorsPeaks[0])
+                            .on('mouseover', tip.show)
+                            .on('mouseout', tip.hide);
+
+                        /**
+                         *  BUILD AXIS ***********
+                         **/
+                        // Add the X Axis
+                        svg.append("g")
+                            .attr("class", "x axis")
+                            .attr("transform", "translate(" + margin.left + "," + (height + margin.top) + ")")
+                            .call(xAxis);
+                        // Add the Y Axis
+                        svg.append("g")
+                            .attr("class", "y axis")
+                            .attr("transform", "translate(" + margin.left + "," + margin.top + ")") // Push left for 00:00 log
+                            .call(yAxis);
+                        // Axis label
+                        svg.append("text") // y
+                            .attr("class", "yLabel")
+                            .attr("transform", "translate(" + (50) + "," + (30) + ")")
+                            .text(res.meta.peaks.y_dimension) // depanding on scope
+                        ;
+                        svg.append("text") // x
+                            .attr("class", "xLabel")
+                            .attr("text-anchor", "middle")
+                            .attr("transform", "translate(" + (width / 2) + "," + (height + margin.top + 30) + ")")
+                            .text('Abspielzeit (Minuten:Sekunden)');
+
+                        // Title - name of the videofile
+                        svg.append("text")
+                            .attr("class", "chart-title")
+                            .attr("x", (width / 2))
+                            .attr("y", -30 + (margin.top))
+                            .attr("text-anchor", "middle")
+                            .text([
+                                "Video: " + the_data_social[0].v
+                            ].join(''));
+
+                        // subTitle - watchingprogress personal
+                        svg.append("text")
+                            .attr("class", "chart-title-sub")
+                            .attr("x", (width / 2))
+                            .attr("y", -10 + (margin.top))
+                            .attr("text-anchor", "middle")
+                            .text([
+                                "Persönlicher Betrachtungsfortschritt: " + persVideoProgress + " %"
+                            ].join(''));
+
+                        // Draw legend - Symbols & Text
+                        var legend = svg.selectAll(".legend")
+                            .data("1")
+                            .enter().append("g")
+                            .attr("class", "legend");
+                        legend.append("rect")
+                            .attr("x", width - 225)
+                            .attr("y", 2)
+                            .attr("width", 10)
+                            .attr("height", 10)
+                            .style("fill", colorsPeaks[1]);
+                        legend.append("text")
+                            .attr("class", "legend")
+                            .attr("x", width - 200)
+                            .attr("y", 5)
+                            .attr("dy", ".40em")
+                            .style("text-anchor", "start")
+                            .text("Betrachtungen anderer");
+                        legend.append("rect")
+                            .attr("x", width - 225)
+                            .attr("y", 20)
+                            .attr("width", 10)
+                            .attr("height", 10)
+                            .style("fill", colorsPeaks[0]);
+                        legend.append("text")
+                            .attr("class", "legend")
+                            .attr("x", width - 200)
+                            .attr("y", 25)
+                            .attr("dy", ".40em")
+                            .style("text-anchor", "start")
+                            .text("Deine Betrachtungen");
+
+                        svg.call(tip);
+
+                        console.log("*** finished PEAKS ***");
+
+                    }) // end d3 peaks
+
+            } // end LoadData2()
+        </script>
+
+        <% include footer %>

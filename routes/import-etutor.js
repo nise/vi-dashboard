@@ -18,6 +18,7 @@ module.exports = function (source, target) {
 
 	/**
 	 * Data preparation
+	 * die MongoDb-Collection "logexts" wird in die Collection "logext2s" konvertiert
 	 * 
 	 */
 	module.explode = function (req, res) {
@@ -31,6 +32,7 @@ module.exports = function (source, target) {
 			if (err) {
 				res.send(err);
 			}
+			// die Collection logexts wird als logext2s konvertiert
 			var stream = LogExt.find().cursor();
 			// explode from scratch	 	
 			stream

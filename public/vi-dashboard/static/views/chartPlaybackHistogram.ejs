@@ -22,7 +22,6 @@
                 <h5>Video files</h5>
                 <div id="video-select"></div>
             </div>
-
         </div>
     </div>
 
@@ -50,11 +49,13 @@
             obj.filters = [];
 
             // init filters, dim, type, items, selector, ylabel, labels
+            // sg - werden beim Aufbau der Seite einmalig geladen - danach nur noch onClick-Event innerhalb ausgeführt
             select_filter({ dim: 'video', type: 'checkbox', items: file_keys, selector: '#video-select' }, true);
             select_filter({ dim: 'group', type: 'checkbox', items: group_keys, selector: '#group-select' }, true);
             //select_filter({ dim: 'phase', type: 'checkbox', items: group_keys, selector: '#group-select' });
             loadData(obj, { video: file_keys, group: group_keys });
 
+            // RESET-BUTTON
             $('#reset_btn').click(function () {
                 select_filter({ dim: 'video', type: 'checkbox', items: file_keys, selector: '#video-select' }, true);
                 select_filter({ dim: 'group', type: 'checkbox', items: group_keys, selector: '#group-select' }, true);
@@ -65,7 +66,12 @@
              * 
              */
             function loadData(obj, filter) {
+
+                console.log("loadDataFunction: ", " obj: ", obj, " filter: ", filter);
+
+                // canvas über class leeren
                 $('.histCharts').each(function (i, val) { $(this).empty() });
+                
                 // Set the dimensions of the canvas / graph
                 var margin = { top: 50, right: 30, bottom: 30, left: 30 };
 
@@ -74,31 +80,66 @@
                     color = d3.scale.category10();
                 // Get the data
                 d3.json("/data/playback-histogram/videos/" + filter['video'] + "/groups/" + filter['group'], function (error, res) {
+                    console.log("res.data: ", res.data);
+                    // {	session_duration: Array(277), 
+                    //     loading: Array(114), 
+                    //     play_dur: Array(2085), 
+                    //     pause_dur: Array(897), 
+                    //     seek_dur: Array(1111), 
+                    //     seek_ffw: Array (674), 
+                    //     session_duration: Array (277)   }
+                    // loading[
+                    //     {group: 99, phase: 6, video: "e2script_lecture1_improved.mp4", duration: 3.658},
+                    //     {group: 101, phase: 6, video: "e2script_lecture4_improved.mp4", duration: 0.235},
+                    //     {group: 101, phase: 6, video: "e2script_lecture5_improved.mp4", duration: 0.343}
+                    // ]
+
                     const t1 = performance.now();
                     // iterate chart data
                     if (res !== undefined) {
                         var i = -1;
-                        for (var jj in res.data) {
-                            if (res.data.hasOwnProperty(jj)) {
+                        // für jedes Sub-Objekt aus res.data (play_dur, pause_dur, loading, ...)
+                        var jj;
+                        for (jj in res.data) {
+                            console.log("FOR: jj-length", jj, " Länge: ", res.data[jj].length);
+                            // hat object attribut jj?
+                            // alt: if (res.data.hasOwnProperty(jj)) { // die Properties sind immer da, aber ggf. leere Arrays
+                            if (res.data.hasOwnProperty(jj) && res.data[jj].length > 0) {
                                 i++;
 
+                                /**
+                                 * CREATE DIV-ELEMENT
+                                 */
                                 var div = $('<div></div>')
                                     .attr('id', 'user' + i)
                                     .addClass('col-md-4 rowchart');
+                                // an parent-Gruppe hängen
                                 $('#' + res.meta[jj].parent).append(div);
-                                ////////////////////////////////
+                                // -> <div id="user0" class="col-md-4 rowchart">
+
+                                /**
+                                 * PREPARE DATA
+                                 */
+
                                 var values = [];
+                                // values[] -> array of durations
                                 res.data[jj].forEach(function (d) { //alert(JSON.stringify(d))
                                     if (d.duration > 0 &&  filter.group.indexOf(d.group) !== -1 &&  filter.video.indexOf(d.video) !== -1){
                                         values.push(+d.duration);
                                     }
                                 });
+                                //console.log("values-jj: ", jj, " - ", values);
+                                // wenn values-array leer -> forEach-Schleife um diese Iteration überspringen
                                 if (values.length === 0) {
+                                    console.log("values-jj leer! ", jj);
                                     i--; continue;
                                 }
+                                console.log("values: ", jj, " -> ",values  );
+
                                 var
                                     max = d3.max(values),
                                     min = d3.min(values),
+                                    // Log2 von Anzahl der Values und aufrunden für Anzahl der Bars
                                     bins = Math.ceil(Math.log2(values.length)), // considering Sturges' formula
                                     color = "steelblue",
                                     width = $("#user" + i).width() - margin.left - margin.right,
@@ -107,12 +148,27 @@
                                     formatTime = d3.time.format("%H"),
                                     formatMinutes = function (d) { return formatTime(new Date(2012, 0, 1, Math.floor(d), 0, 0)); };
 
+                                console.log("min: ", min, " - max: ", max);
+
+                                // d3 histogram needs linear scale
                                 var x = d3.scale.linear()
                                     .domain([min, max])
                                     .range([0, width]);
+
+                                // A histogram layout shows the distribution of data by grouping discrete data points into bins
                                 var data = d3.layout.histogram()
-                                    .bins(x.ticks(bins))
+                                    //.bins(x.ticks(bins)) // sg erzeugt bei der Kombination g100,g101,v5 -> einen D3 Fehler 
+                                                            // beim Erzeugen der bar-widths, da Array values leer
+                                /**
+                                 * https://d3-wiki.readthedocs.io/zh_CN/master/Histogram-Layout/
+                                 * Specifies how to bin values in the histogram. 
+                                 * If no argument is specified, the current binning function is returned, 
+                                 * which defaults to an implementation of Sturges' formula that divides values into bins using uniformly-spaced values. 
+                                 * If a count is specified, the value range is divided evenly into the specified number of bins.
+                                */                                                            
+                                    .bins(x.ticks()) // sg - neu
                                     (values);
+                                console.log("data: ", data);
 
                                 var yMax = d3.max(data, function (d) { return d.length });
                                 var yMin = d3.min(data, function (d) { return d.length });
@@ -151,7 +207,9 @@
 
                                 bar.append("rect")
                                     .attr("x", 1)
-                                    .attr("width", (x(data[0].dx) - x(0)) - 1)
+                                    // FEHLER wenn nur ein Datum für Chart in data
+                                    //              erster x-value - x-0  - Zwischenraum
+                                    .attr("width", ( x(data[0].dx) - x(0) ) -1)
                                     .attr("height", function (d) { return height - y(d.y); })
                                     .attr("class", "main-chart-color");
 
@@ -233,6 +291,8 @@
                                     .attr("text-anchor", "middle")  // this makes it easy to centre the text as the transform is applied to the anchor
                                     .attr("transform", "translate(" + (width / 2) + "," + (height + margin.bottom) + ")")  // centre below axis
                                     .text(res.meta[jj].x_dimension + ' (' + res.meta[jj].x_unit + ')');
+                            } else {
+                                console.log("jj has no own property: ", jj);
                             }
                         }
 

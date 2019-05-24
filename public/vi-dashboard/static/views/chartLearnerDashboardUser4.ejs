@@ -1,0 +1,955 @@
+<% include layout %>
+
+    <div class="row" id="partTimespent">
+
+        <div class="main-chart col-md-10">
+
+            <div id="chartTimespent">
+        
+                <!-- Timespent -->
+                <div class="col-md-12">
+
+                    <h3 class="title">Videobetrachtungen pro Tag</h3>
+                    <div id="totals">
+                            <div>Betrachtungsdauer in HH:mm</div>
+                            Gesamter Zeitraum: <span id="total"></span> 
+                            <div></div>
+                            Zeitraum der aktuellen Auswahl: <span id="active">-</span>
+                    </div>
+
+                    <div id="charts">
+                        <div id="date-chart" class="chart">
+                            <div class="title">Betrachtungen pro Tag</div>
+                        </div>
+                        <div id="weekday-chart" class="chart">
+                            <div class="title">nach Wochentag</div>
+                        </div>
+                    </div>  
+                    <div id="lists">
+                        <h5>Anzeige eines Beispieldatensatzes:</h5>
+                        <div id="watched-list" class="list"></div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+        <!-- FILTER -->
+        <div class="col-md-2">
+
+            <!-- <h4>Filter 1:</h4> -->
+            <div class="">
+                <h5>Videoauswahl:</h5>
+                <div id="video-select_1"></div>
+            </div>
+
+        </div>
+
+    </div>
+    <hr><!-- -------------------------------------------------------------- --> 
+    <div class="row" id="partPeaks">
+
+        <div class="main-chart col-md-10">
+
+            <div class="row">
+
+                <!-- #2 PEAKS -->
+                <div class="col-md-12">
+                    <h3 class="title">Betrachtungen innerhalb eines Videos</h3>
+                    <div id="chartPeaks" class="row"></div>
+                </div>   
+
+            </div>
+
+        </div>
+
+        <!-- FILTER -->
+        <div class="col-md-2">
+            <!-- <h4>Filter 2:</h4> -->
+            <div class="">
+            <h5>Videoauswahl:</h5>
+            <div id="video-select_2"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <style>
+.x { font: 18px sans-serif; }
+.y { font: 18px sans-serif; }
+.xLabel {font: 12px sans-serif;}
+.yLabel {font: 12px sans-serif;}
+.legend {font: 12px sans-serif;}
+#charts {
+  padding: 10px 0;
+}   
+.chart {
+  display: inline-block;
+  height: 150px;
+  margin-bottom: 20px;
+}    
+#date-chart {
+  width: 1000px;
+}
+#weekday-chart {
+  width: 300px;
+} 
+.reset {    padding-left: 1em;
+            font-size: smaller;
+            color: #ccc;        }           
+.background.bar {   fill: #ccc; }
+.foreground.bar {   fill: steelblue; }
+.axis path, .axis line {    fill: none;
+                            stroke: #000;
+                            shape-rendering: crispEdges; }
+.brush rect.extent {    fill: steelblue;
+                        fill-opacity: .125; }
+.brush .resize path {   fill: #eee;
+                        stroke: #666;   }  
+
+
+/* LIST */
+#watched-list {         /* height of the list */
+  min-height: 25px;
+}
+#watched-list .date {   /* */
+  margin-top: 1em;
+  margin-bottom: 1em;
+ /* margin-left: 5px;*/
+  font-size: smaller;
+}
+#watched-list .day {    /* headline group inside the list */
+  margin-top: 1em;
+  margin-bottom: .3em;
+  margin-left: 5px;
+  font-size: small;
+}
+#watched-list .watched {
+  line-height: 1.5em;
+  background: #eee;
+  width: 500px;
+  margin-bottom: 1px;  /* margin between list-entries */
+  margin-left: 1px;
+}
+#watched-list .watched div {    /* one entry of the list */
+  display: inline-block;
+  width:80px;
+  margin-left: 10px;
+}
+/* properties inside the list */
+#watched-list .time {
+  width: 10px;
+  color: #999;
+}
+#watched-list div.video {
+  width: 160px;
+  text-align: right;
+  color: green;
+}
+/* total and selected events */
+#totals {   
+        text-align: right;
+        margin-top: 1em;
+        margin-left: 10px;
+        font-size: small;
+        font-weight: bold;
+        width: 900px;           
+}
+
+
+
+/* PEAKS CSS */
+.d3-tip {
+    font-size: small;
+    font-weight: bold;
+}
+.chart-title {
+    font-size: medium;
+    font-weight: bold; 
+}
+.chart-title-sub {
+    font-size: small;
+}
+
+          </style>
+
+    <!----------------------------------------------------------->
+	<% include scripts %>
+    <!----------------------------------------------------------->
+	<script>
+       const t0 = performance.now();
+       // console.log("t0-start script: ", t0);
+      var
+        videos = <%-JSON.stringify(videos, null, '\t') %>,
+        lastSelected = {},
+        obj = {}
+        ;
+
+      // init filters
+      select_filter({ dim: 'video', type: 'checkbox', items: videos, selector: '#video-select_1' }, true);
+      select_filter2({ dim: 'video', type: 'radio', items: videos, selector: '#video-select_2' });
+
+			const color_range = ['yellow', 'blue', 'purple', 'red', 'orange', 'green', 'black'];
+			const filterChartHeight = 150;
+
+      // Colors for Vids
+      colors = ["#cd5c5c",  "#007fff",  "#66ff00",  "#4b3621",  "#a9a9a9" ] //, "#f44250", "#41f4dc"];
+      //        indianred,  azureblue,  brightgreen, cafenoir     electricblue
+      days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
+      colorsPeaks = ['#ffff00', '#FF0000'];
+      //              personal, social
+
+			// initial loadData - load the first video
+      loadData(obj, { video: videos });
+      loadData2(obj, { video: videos[0] });
+   
+
+    /**
+     ***************** TIMESPENT **************************** 
+     **/
+    function loadData(obj, filter) {
+
+          const t1 = performance.now();         
+
+          console.log("loadDataFunction: ", " obj: ", obj, " filter: ", filter);
+          // -> obj:  {}__proto__: Object  filter:  {video: "e2script_lecture1_improved.mp4"}
+
+          d3.json("/data/learner-dashboard-user4/timespent-video/video/" + filter['video'] , function (error, res) {
+
+            // by using the videofilter empty the chart(s) for a fresh start
+            $("#date-chart").empty();     
+            $("#weekday-chart").empty();          
+            console.log("d3json res: ", res);
+
+            console.log("---TIMESPENT---");
+            console.log("res.data.timespentVideo: ", res.data.timespentVideo);
+            // {   user: 20,
+            //     week: 44,
+            //     dow: 6,
+            //     video: 'e2script_lecture1_improved.mp4',
+            //     date: 2015-10-30T15:32:11.215Z
+            //     utc: 1446219135237 },
+
+            let the_data = res.data.timespentVideo;
+
+            /**
+             *  DATA PREPARATION****************************
+             **/
+
+
+            // FORMATTERS *****************
+
+            // Various formatters.
+            var formatNumber = d3.format(",d"),             // for the list - x of x selected
+                formatDate = d3.time.format("%B %d, %Y"),   // for the list - date
+                formatTime = d3.time.format("%H:%M:%S"),       // for the list - time
+                formatTimeYaxis = d3.time.format("%H:%M")   
+            ;
+    
+            var formatDateImport = d3.time.format("%Y-%m-%d"); 
+
+            // multi-timeformatting for the xAxis
+            var customTimeFormat = d3.time.format.multi([
+           ["%I:%M",   function(d) { return d.getMinutes(); }], // 12-hour clock, minute decimal
+           ["%I %p",   function(d) { return d.getHours(); }], // 12-hour clock, AM or PM
+           ["%a %d",   function(d) { return d.getDay() && d.getDate() != 1; }], // abbr. weekday name, zero padded day
+            ["%b %d",   function(d) { return d.getDate() ; }], // abbr. month name, zero padded day
+            ["%B",      function(d) { return d.getMonth() = 1; }], // full month name
+            ["%a",      function(d) { return d.day(); }],
+            ["%Y",      function() { return true; }] // year with century
+            ]);
+
+            // Formatting yAxis
+            var localeFormatter = d3.locale({
+                "decimal": ",",
+                "thousands": ".",
+                "grouping": [3],
+                "currency": ["", "€"],
+                "dateTime": "%a, %e %b %Y, %X",
+                "date": "%d.%m.%Y",
+                "time": "%H:%M:%S",
+                "periods": ["", ""],
+                "days": ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"],
+                "shortDays": ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"],
+                "months": ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"],
+                "shortMonths": ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dec"]
+            });
+            // var numberFormat = localeFormatter.numberFormat(",.");
+            // console.log(numberFormat(20000000000,1)); // 20.000.000.000,00
+
+            //  the_data per EVENT
+            the_data.forEach(function(d, i) {
+                d.index = i;
+                d.date = new Date(d.date); // convert date-string to date-object
+                temp = 1;
+                d.sum = temp;   // create 
+            })
+
+            console.log("the_data: ", the_data);
+
+            // ********************************************************
+
+        // nest operator for grouping-schema of the !LIST!
+                var nestByDate = d3.nest()
+                .key(function(d) { return d3.time.day(d.date); })
+                ;
+
+        // Create crossfilter dimensions and groups
+            var cross_data = crossfilter(the_data),
+                all = cross_data.groupAll();
+
+            // date-dimension
+            var date = cross_data.dimension(function(d) { return d.date; }),
+                // group per day
+                dates = date.group(d3.time.day);
+
+            var weekday = cross_data.dimension(function(d) { return d.date.getDay(); }),
+                //weekdays = weekday.group(function(d) { return d;})
+                weekdays = weekday.group(function(d) { return parseInt(d); })
+                ;
+
+
+            var charts = [
+
+                // CHART#1 by date
+                barChart()
+                    .dimension(date)
+                    .group(dates)
+                    .round(d3.time.day.round) // ensures whole days
+                    .x(d3.time.scale()
+                        // which watching-period should be displayed
+                        .domain([new Date(2015, 10, 01), new Date(2016, 01, 28)])
+                        .rangeRound([0, 8 * 120])   )   // rangeRound to avoid antialaising artifacts - [0, scale? * units]
+                        // initial filter selection
+                        .filter([new Date(2015, 11, 1), new Date(2015, 11, 14)])
+                    // .y(d3.scale.linear()
+                    //     .domain([ 0, 50])  // why max value without effect???
+                    //     .range([ 200, 0 ])   )
+                        
+                    ,
+
+                // CHART#2 by weekday
+                barChart()
+                    .dimension(weekday)
+                    .group(weekdays)
+                   // .round(weekdays,1) // ensures whole days
+                    .x(d3.scale.linear()
+                        // which watching-period should be displayed
+                        .domain([0, 7 ]) 
+                       // .range([1, 10 *7])  )
+                        .rangeRound([0, 15 * 7])   )   // rangeRound to avoid antialaising artifacts - [0, scale? * units]
+                    // .y(d3.scale.linear()
+                    //     .domain([ 0, 50])  // why max value without effect???
+                    //     .range([ 200, 0 ])   )
+
+
+            ];
+
+            // Given our array of charts, which we assume are in the same order as the .chart elements in the DOM, bind the charts to the DOM and render them.
+            // We also listen to the chart's brush events to update the display.
+            var chart = d3.selectAll(".chart")
+                .data(charts)
+                .each(function(chart) { chart.on("brush", renderAll).on("brushend", renderAll); }); 
+
+        // THE LIST       
+            // Render the initial lists.
+            var list = d3.selectAll(".list")
+                .data([watchedList]);   // FUNCTION watchedList
+
+            // Render the TOTAL
+            d3.selectAll("#total")      // calculate the the hole dataset
+                // .text(formatNumber(cross_data.size()));
+                .text( parseInt( (cross_data.size() / 60 ) / 60) 
+                            + ":" + 
+                       ( parseInt( (cross_data.size() / 60 ) % 60) <10?"0":"" ) +
+                       parseInt( (cross_data.size() / 60 ) % 60)
+                       );
+
+            renderAll();
+
+        // FUNCTION RENDER
+            // Renders the specified chart or list.
+            function render(method) {
+                d3.select(this).call(method);
+            }
+
+        // FUNCTION RENDERALL
+            // Whenever the brush moves, re-rendering everything.
+            function renderAll() {
+                chart.each(render);
+                list.each(render);
+                d3.select("#active")    // calculate the current selection
+                   .text( 
+                          parseInt( (all.value() / 60 ) / 60 )  
+                            + ":" + 
+                          ( parseInt( (all.value() / 60 ) % 60 )<10?"0":"" ) + 
+                          parseInt( (all.value() / 60 ) % 60 )  
+                   );
+            }
+
+            window.filter = function(filters) {
+                filters.forEach(function(d, i) { charts[i].filter(d); });
+                renderAll();
+            };
+
+            window.reset = function(i) {
+                charts[i].filter(null);
+                renderAll();
+            };
+
+        // FUNCTION watchedList
+            function watchedList(div) {
+                var watchedByDate = nestByDate.entries(date.top(1));
+
+                div.each(function() {
+                var date = d3.select(this).selectAll(".date")
+                    .data(watchedByDate, function(d) { return d.key; });
+
+                date.enter().append("div")
+                    .attr("class", "date")
+                    .append("div")
+                    .attr("class", "day")
+                    .text(function(d) { return formatDate(d.values[0].date); });
+
+                date.exit().remove();
+
+                var watched = date.order().selectAll(".watched")
+                    .data(function(d) { return d.values; }, function(d) { return d.index; });
+
+                var watchedEnter = watched.enter().append("div")
+                    .attr("class", "watched");
+
+                watchedEnter.append("div")
+                    .attr("class", "time")
+                    .text(function(d) { return formatTime(d.date) + " Uhr"; });
+
+                watchedEnter.append("div")
+                    .attr("class", "user")
+                    .text(function(d) { return "UserID " + d.user ; });
+
+                watchedEnter.append("div")
+                    .attr("class", "week")
+                    .text(function(d) { return d.week + ".Woche"; });
+
+                watchedEnter.append("div")
+                    .attr("class", "video")
+                    .text(function(d) { return d.video; })
+
+                watched.exit().remove();
+
+                watched.order();
+                });
+            }
+
+            function barChart() {
+                if (!barChart.id) barChart.id = 0;
+
+                var margin = {top: 30, right: 5, bottom: 40, left: 40},
+                    x,
+                    y = d3.scale.linear().range([100, 0]),
+                    id = barChart.id++,
+                    axis = d3.svg.axis().orient("bottom")
+                    // .tickFormat(customTimeFormat).ticks(35),
+                    .ticks(10),
+                    // yAxis = d3.svg.axis().orient("left").tickFormat(localeFormatter.numberFormat(",.")),
+                    brush = d3.svg.brush(),
+                    brushDirty,
+                    dimension,
+                    group,
+                    round
+                    ;
+
+                    
+                function chart(div) {
+                var width =  x.range()[1],
+                    height = y.range()[0];
+
+                y.domain([0, group.top(1)[0].value]);
+
+                div.each(function() {
+                    var div = d3.select(this),
+                        g = div.select("g");
+
+                    // Create the skeletal chart. runs only ones for initial build
+                    if (g.empty()) {
+                    div.select(".title").append("a")
+                        .attr("href", "javascript:reset(" + id + ")")
+                        .attr("class", "reset")
+                        .text("reset")
+                        .style("display", "none");
+
+                    g = div.append("svg")
+                        .attr("width", width + margin.left + margin.right)
+                        .attr("height", height + margin.top + margin.bottom)
+                        .append("g")
+                        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+                    // define a clipped path with the shape of an rect
+                    g.append("clipPath")
+                        .attr("id", "clip-" + id)
+                        .append("rect")
+                        .attr("width", width)
+                        .attr("height", height)
+                        ;
+
+                    g.selectAll(".bar")
+                        .data(["background", "foreground"])
+                        .enter().append("path")
+                        .attr("class", function(d) { return d + " bar"; })
+                        .datum(group.all())
+                        ;
+
+                    g.selectAll(".foreground.bar")
+                        .attr("clip-path", "url(#clip-" + id + ")")
+                        ;
+
+                    g.append("g")
+                        .attr("class", "axis")
+                        .attr("transform", "translate(0," + height + ")")
+                        .call(axis)
+                        ;
+                        // .selectAll("text")
+                        // // vis.selectAll(".xaxis text")  // select all the text elements for the xaxis
+                        // // .attr("transform", "rotate(-45)");
+                        // .attr("transform", function(d) {
+                        // return "translate(" + this.getBBox().height*-2 + "," + this.getBBox().height + ")rotate(-45)"; })
+                        // ;
+
+                    // g.append("g")
+                    //     .attr("class", "axis")
+                    //     .call(yAxis)
+                    //     ;
+
+                    // Initialize the brush component with pretty resize handles.
+                    var gBrush = g.append("g").attr("class", "brush").call(brush);
+                    gBrush.selectAll("rect").attr("height", height);
+                    gBrush.selectAll(".resize").append("path").attr("d", resizePath);
+                    }
+
+                    // Only redraw the brush if set externally.
+                    if (brushDirty) {
+                    brushDirty = false;
+                    g.selectAll(".brush").call(brush);
+                    div.select(".title a").style("display", brush.empty() ? "none" : null);
+                    if (brush.empty()) {
+                        g.selectAll("#clip-" + id + " rect")
+                            .attr("x", 0)
+                            .attr("width", width);
+                    } else {
+                        var extent = brush.extent();
+                        g.selectAll("#clip-" + id + " rect")
+                            .attr("x", x(extent[0]))
+                            .attr("width", x(extent[1]) - x(extent[0]));
+                    }
+                    }
+
+                    g.selectAll(".bar").attr("d", barPath);
+                });
+
+                function barPath(groups) {
+                    var path = [],
+                        i = -1,
+                        n = groups.length,
+                        d;
+                    while (++i < n) {
+                    d = groups[i];
+                    path.push("M", x(d.key), ",", height, "V", y(d.value), "h9V", height);
+                    }
+                    return path.join("");
+                }
+
+                // defines the optical handles of the brush-effect
+                function resizePath(d) {
+                    var e = +(d == "e"),
+                        x = e ? 1 : -1,
+                        y = height / 3;
+                    return "M" + (.5 * x) + "," + y
+                        + "A6,6 0 0 " + e + " " + (6.5 * x) + "," + (y + 6)
+                        + "V" + (2 * y - 6)
+                        + "A6,6 0 0 " + e + " " + (.5 * x) + "," + (2 * y)
+                        + "Z"
+                        + "M" + (2.5 * x) + "," + (y + 8)
+                        + "V" + (2 * y - 8)
+                        + "M" + (4.5 * x) + "," + (y + 8)
+                        + "V" + (2 * y - 8);
+                }
+                }
+
+            // BRUSH EFFECT
+                brush.on("brushstart.chart", function() {
+                var div = d3.select(this.parentNode.parentNode.parentNode);
+                div.select(".title a").style("display", null);
+                });
+
+                brush.on("brush.chart", function() {
+                    var g = d3.select(this.parentNode),
+                        extent = brush.extent();
+                    if (round) g.select(".brush")   // rounding brush effect
+                        .call(brush.extent(extent = extent.map(round)))
+                        .selectAll(".resize")
+                        .style("display", null);
+                    g.select("#clip-" + id + " rect")
+                        .attr("x", x(extent[0]))
+                        .attr("width", x(extent[1]) - x(extent[0]));
+                    dimension.filterRange(extent);
+                });
+
+                brush.on("brushend.chart", function() {
+                    if (brush.empty()) {
+                        var div = d3.select(this.parentNode.parentNode.parentNode);
+                        div.select(".title a").style("display", "none");
+                        div.select("#clip-" + id + " rect").attr("x", null).attr("width", "100%");
+                        dimension.filterAll();
+                    }
+                });
+
+            // CHART DYNAMIC PROPERTIES
+                chart.margin = function(_) {
+                    if (!arguments.length) return margin;
+                    margin = _;
+                    return chart;
+                };
+
+                chart.x = function(_) {
+                    if (!arguments.length) return x;
+                    x = _;
+                    axis.scale(x);
+                    brush.x(x);
+                    return chart;
+                };
+
+                chart.y = function(_) {
+                    if (!arguments.length) return y;
+                    y = _;
+                    yAxis.scale(y);
+                   // brush.y(y);
+                    return chart;
+                };
+
+                chart.dimension = function(_) {
+                    if (!arguments.length) return dimension;
+                    dimension = _;
+                    return chart;
+                };
+
+                chart.filter = function(_) {
+                    if (_) {
+                        brush.extent(_);
+                        dimension.filterRange(_);
+                    } else {
+                        brush.clear();
+                        dimension.filterAll();
+                    }
+                    brushDirty = true;
+                    return chart;
+                };
+
+                chart.group = function(_) {
+                    if (!arguments.length) return group;
+                    group = _;
+                    return chart;
+                };
+
+                chart.round = function(_) {
+                    if (!arguments.length) return round;
+                    round = _;
+                    return chart;
+                };
+
+                return d3.rebind(chart, brush, "on");
+            
+            }
+
+          }) // end TimeSpentVideo
+
+       
+
+        } // end LoadData()
+
+
+    /**
+     ***************** PEAKS **************************** 
+     **/
+
+    function loadData2(obj, filter) {
+    
+
+            d3.json("/data/learner-dashboard-user4/peaks/video/" + filter['video'], function (error, res) {
+    
+                // canvas leeren
+                $("#chartPeaks").empty();            
+                console.log("d3json res: ", res);
+                
+                // const t2a = performance.now(); 
+                // console.log("t2a-loadData Peaks: ", t2a);
+    
+                console.log("---PEAKS---");
+                console.log("res.data.peaksSocial: ", res.data_social);
+                // 0: {v: "e2script_lecture5_improved.mp4", sec: 0, count: 94}
+                // 1: {v: "e2script_lecture5_improved.mp4", sec: 1, count: 20}
+                // 2: {v: "e2script_lecture5_improved.mp4", sec: 2, count: 23}
+                // 3: {v: "e2script_lecture5_improved.mp4", sec: 4, count: 22}
+                // ...
+                console.log("res.data.peaksPersonal: ", res.data_personal);
+                // 0: {v: "e2script_lecture5_improved.mp4", sec: 0, count: 94}
+                // 1: {v: "e2script_lecture5_improved.mp4", sec: 1, count: 20}
+                // 2: {v: "e2script_lecture5_improved.mp4", sec: 2, count: 23}
+                // 3: {v: "e2script_lecture5_improved.mp4", sec: 4, count: 22}
+                // ...
+    
+                let the_data_social = res.data_social;
+                let the_data_personal = res.data_personal;
+                // let videometa = res.videometa;
+                // console.log("videoMeta: ", videometa);
+                //   { e2script_kickoff.mp4: "0:49:02"
+                //     e2script_lecture1_improved.mp4: "0:46:31"
+                //     e2script_lecture2_improved.mp4: "0:49:58"
+                //     e2script_lecture3_improved.mp4: "0:53:10"
+                //     e2script_lecture4_improved.mp4: "0:43:48"
+                //     e2script_lecture5_improved.mp4: "0:42:58" }
+                let videolength = res.videometa[the_data_social[0].v];
+                console.log("videolength: ", videolength);
+
+                let the_data_personalProgressVideo = res.data_progressPersonal[0].count;
+                console.log("the_data_personalProgressVideo: ", the_data_personalProgressVideo);
+    
+                // DATA PREPARATION 
+                // -> cut off extreme values
+                the_data_social.forEach(function (d, i) {
+                    if( d != null ) {
+                        let temp = d.count;
+                        if (temp > 100) {
+                            d.count = 100;
+                        } 
+                    }  
+                });
+                the_data_personal.forEach(function (d, i) {
+                    if( d != null ) {
+                        let temp = d.count;
+                        if (temp > 100) {
+                            d.count = 100;
+                        } 
+                    }  
+                });
+    
+    
+                // time parsing videolength
+                var formatTimeInput = d3.time.format("%-I:%M:%S");
+                var maxX_videolength = formatTimeInput.parse(videolength);
+                console.log("videolength_date: ", maxX_videolength);
+                var getSeconds = d3.time.format("%S");
+                var getMinutes = d3.time.format("%M");
+                var seconds = getSeconds(maxX_videolength);
+                var minutes = getMinutes(maxX_videolength);
+                console.log("Minutes, Seconds ", minutes, " ", seconds);
+                var videolengthDecimal = parseInt(seconds) + (minutes * 60);
+                console.log("videolength_decimal: ", videolengthDecimal);
+
+                let persVideoProgress = parseInt(((the_data_personalProgressVideo / videolengthDecimal) * 100)) ;
+                console.log("persVideoProgress: ", persVideoProgress);
+    
+                // Set the dimensions of the canvas / graph
+                var margin = { top: 50, right: 10, bottom: 35, left: 60 },
+                    width = $("#chartPeaks").width() - margin.left - margin.right,
+                    height = ($("#chartPeaks").width() * .85) / 3 - margin.top - margin.bottom,
+                    barwidth = 3,
+                    barheight = 10,
+                    maxX = videolengthDecimal;
+                console.log("maxX: ", maxX);
+    
+                var formatTime = d3.time.format("%M:%S"),
+                    formatMinutes = function (d) { return formatTime(new Date(2012, 0, 1, 0, 0, d)); };
+    
+                // Set the ranges
+                var x = d3.scale.linear()
+                .domain([0, maxX])
+                .range([0, width])
+                ;
+                var y = d3.scale.linear()
+                .domain([0, 100])  // maxY static, for cutting extreme values
+                //.domain([0, d3.max(the_data_social, function(d) { return d.count } ) ])
+                .range([height, 0])
+                .nice()
+                ;
+    
+                // Define the axes
+                var xAxis = d3.svg.axis()
+                    .scale(x)
+                    .orient("bottom")
+                    .tickFormat(formatMinutes);
+                var yAxis = d3.svg.axis()
+                    .scale(y)
+                    .orient("left")
+                    .ticks(10);
+    
+                /**
+                 *  CANVAS ******************************
+                 **/
+    
+                // Adds the svg canvas and append a group (g)
+                var svg = d3.select('#chartPeaks')
+                    .append("svg")
+                    .attr("width", width  + margin.left + margin.right ) 
+                    .attr("height", height + margin.top + margin.bottom)
+                    ;
+    
+                // Tooltip
+                var tip = d3.tip()
+                    .attr('class', 'd3-tip')
+                    .direction('se')
+                    .offset([-10, 0])
+                    .html(function (d, i) {
+                    var minutes = parseInt(d.sec / 60);
+                    var seconds =  (    ( parseInt( (d.sec % 60) ) <10?"0":"" ) +
+                                         parseInt( (d.sec % 60) ) 
+                                    );
+                    return arr = [
+                        "Zeit: " + minutes + ":" + seconds,
+                        "Anzahl: " + d.count
+                    ].join('<br>');
+                    });            
+    
+                // group for social rects
+                var socialGroup = svg.append("g")
+                    .attr("id", "gSocial_rects")
+                    .attr("transform","translate(" + margin.left + "," + margin.top + ")")
+                    ;
+                var socialBars = socialGroup.selectAll("rect")
+                    .data(the_data_social)
+                    .enter() // data to document
+                    .append("rect") // data becomes tag rect's
+                    .attr("class", "social_rects")
+                    .attr("x", function(d) { return x(d.sec) - ( width / maxX / 2 ) ; })
+                    .attr("y", function(d) { return y(d.count); })
+                    .attr("height", function(d) { return y(0) - y(d.count); })
+                    .attr("width", ( width / maxX ) )
+                    .attr("fill", colorsPeaks[1])
+                    .on('mouseover', tip.show)
+                    .on('mouseout', tip.hide)
+                    ;
+    
+                // group for personal rects
+                var personalGroup = svg.append("g")
+                    .attr("id", "gPersonal_rects")
+                    .attr("transform","translate(" + margin.left + "," + margin.top + ")")
+                    ;
+                var personalBars = personalGroup.selectAll("rect")
+                    .data(the_data_personal)
+                    .enter() // data to document
+                    .append("rect") // data becomes tag rect's 
+                    .attr("class", "personal_rects")
+                    .attr("x", function(d) { return x(d.sec) - ( width / maxX / 2 ) ; })
+                    .attr("y", function(d) { return y(d.count); })
+                    .attr("height", function(d) { return y(0) - y(d.count); })
+                    .attr("width", ( width / maxX ) )
+                    .attr("fill", colorsPeaks[0])
+                    .on('mouseover', tip.show)
+                    .on('mouseout', tip.hide)
+                    ;
+    
+                /**
+                 *  BUILD AXIS ***********
+                 **/
+                // Add the X Axis
+                svg.append("g")
+                    .attr("class", "x axis")
+                    .attr("transform", "translate(" + margin.left + "," + (height + margin.top) + ")")
+                    .call(xAxis);
+                // Add the Y Axis
+                svg.append("g")
+                    .attr("class", "y axis")
+                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")") // Push left for 00:00 log
+                    .call(yAxis);
+                // Axis label
+                svg.append("text") // y
+                    .attr("class", "yLabel")
+                    .attr("text-anchor", "middle")
+                    .attr("transform", "translate(" + (100) + "," + (30) + ")")     
+                    .text('Anzahl Betrachtungen');              
+                svg.append("text") // x
+                    .attr("class", "xLabel")
+                    .attr("text-anchor", "middle")
+                    .attr("transform", "translate(" + (width / 2) + "," + (height + margin.top + 30) + ")") 
+                    .text('Abspielzeit (Minuten:Sekunden)');
+    
+                // Title - name of the videofile
+                svg.append("text")
+                    .attr("class", "chart-title")
+                    .attr("x", (width / 2))
+                    .attr("y", 0 + (margin.top))
+                    .attr("text-anchor", "middle")
+                    .text([
+                        "Video: " + the_data_social[0].v
+                    ].join(''))
+                    ;
+
+                // subTitle - watchingprogress personal
+                svg.append("text")
+                    .attr("class", "chart-title-sub")
+                    .attr("x", (width / 2))
+                    .attr("y", 20 + (margin.top))
+                    .attr("text-anchor", "middle")
+                    .text([
+                        "Persönlicher Betrachtungsfortschritt: " + persVideoProgress + " %"
+                    ].join(''))
+                    ;
+    
+                // Draw legend - Symbols & Text
+                var legend = svg.selectAll(".legend")
+                .data("1")
+                .enter().append("g")
+                .attr("class", "legend")
+                ;
+                legend.append("rect")
+                .attr("x", width - 225)
+                .attr("y", 2)
+                .attr("width", 10)
+                .attr("height", 10)
+                .style("fill", colorsPeaks[1])
+                ;
+                legend.append("text")
+                .attr("class", "legend")
+                .attr("x", width - 200)
+                .attr("y", 5)
+                .attr("dy", ".40em")
+                .style("text-anchor", "start")
+                .text("Betrachtungen anderer")
+                ;
+                legend.append("rect")
+                .attr("x", width - 225)
+                .attr("y", 20)
+                .attr("width", 10)
+                .attr("height", 10)
+                .style("fill", colorsPeaks[0])
+                ;
+                legend.append("text")
+                .attr("class", "legend")
+                .attr("x", width - 200)
+                .attr("y", 25)
+                .attr("dy", ".40em")
+                .style("text-anchor", "start")
+                .text("Betrachtungen persönlich")
+                ;
+    
+                svg.call(tip);
+    
+                console.log("*** finished PEAKS ***");
+
+                // const t2b = performance.now(); 
+                // const t2c = t2b - t2a
+                // console.log("t2c-loadData2 Peaks END: ", t2c);
+    
+            }) // end d3 peaks
+    
+
+
+        } // end LoadData2()
+
+
+
+
+
+    </script>
+
+    <% include footer %>

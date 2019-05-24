@@ -39,6 +39,7 @@
 		var observer = new Observer();
 
 		const group_keys = <%-JSON.stringify(groups, null, '\t') %>;
+		console.log("group_keys: ", group_keys) // -> Array [ 97, 98, 99, 100, 101, 102 ]
 		const context_keys = <%-JSON.stringify(context, null, '\t') %>;//['assessment','comments','hyperlinks','playbackSpeed','player','skipBack','toc'];
 		const type_keys = <%-JSON.stringify(type, null, '\t') %>;
 		const color_range = ['yellow', 'blue', 'purple', 'red', 'orange', 'green', 'black'];
@@ -64,31 +65,33 @@
 		function loadData(obj) {
 			d3.json("/data/cordtra/group/all/user/all", function (error, result) {
 				data = result.data;
+				console.log("result: ", result);
+				console.log("json-data: ", data);
 				const t1 = performance.now();
 
 				// prepare data		
 				var dateTimeFormat = d3.time.format('%Y-%m-%d');
-				data.forEach(function (d) { //alert(JSON.stringify(d))
+				data.forEach(function (d) { 
 					d.date = dateTimeFormat.parse(d.d);  //alert( obj.keys.first+'---'+d[obj.dim.first] )
-					d[obj.dim.first] = +obj.keys.first.indexOf(d[obj.dim.first]) / 30;
+					// sg - Fehlerhafte Anzeige der Gruppen -> z.B. 0,1666..
+					// d.g = +group_keys.indexOf(d.g) / 30
+					// sg auskommentiert: d[obj.dim.first] = +obj.keys.first.indexOf(d[obj.dim.first]) / 30;
 					
 				});
 
 				var
 					ndx = crossfilter(data),
+					//																															g = group				c = context
 					mainDimension = ndx.dimension(function (d) { return [+d.date, d[obj.dim.first], d[obj.dim.second], d[obj.dim.third]]; }),
 					mainGroup = mainDimension.group().reduce(
 						/* callback for when data is added to the current filter results */
 						function (p, v) {
-							//alert(JSON.stringify(v))
 							++p.count;
 							p.date = v.date;
 							p.s = v.s;
 							p[obj.dim.first] = v[obj.dim.first];
 							p[obj.dim.second] = v[obj.dim.second];
-
-							//p.p = v.p;
-
+							//p.p = nice(v.p);
 							return p;
 						},
 						/* callback for when data is removed from the current filter results */
@@ -99,8 +102,7 @@
 							p[obj.dim.second] = p[obj.dim.second];
 							p[obj.dim.first] = p[obj.dim.first];
 							p[obj.dim.third] = v[obj.dim.third];
-							//p.p = 0;
-
+							
 							return p;
 						},
 						// init filter 
@@ -109,24 +111,33 @@
 						});
 
 				var
+					// x - date
 					xRange = [
 						d3.min(mainGroup.all(), function (d) { return d.value.date; }),
 						d3.max(mainGroup.all(), function (d) { return d.value.date; })
 					],
+					// y - group
 					yRange = [
 						d3.min(mainGroup.all(), function (d) { return d.value[obj.dim.first] - d.value.s * 2; }),
 						d3.max(mainGroup.all(), function (d) { return d.value[obj.dim.first] + d.value.s; })
 					];
 
 
-				// main chart 
+				// main chart - BUBBLE
+					/**
+					 * https://www.tutorialspoint.com/dcjs/dcjs_bubble_chart.htm
+					 * A bubble chart is used to display three dimensions of the data. 
+					 * It is a variation of scatter chart, in which the data points are replaced with bubbles. 
+					 * The bubble sizes are represented with respect to the data dimension. 
+					 * It uses horizontal and vertical axes as value axes. 
+					 */
 				var mainChart = dc.bubbleChart("#mainChart");
 				observer.register(mainChart);
-				var bam = 1;//mainChart.height() / obj.keys.first.length / yRange[1] / 100;
+				var bam = mainChart.height() / obj.keys.first.length / yRange[1] / 5;
 				//alert(bam)
 				var width = (800 - 90); 
 				mainChart
-					//.width(width)
+					.width(width)
 					.height(350)
 					.margins({ top: 50, right: 30, bottom: 30, left: 60 })
 					.x(d3.time.scale().range(xRange))//.round(d3.time.week.round)
@@ -143,7 +154,7 @@
 					.elasticY(true)
 					.renderLabel(false)
 					.minRadius(1)
-					.maxBubbleRelativeSize( bam )
+					.maxBubbleRelativeSize( bam ) // = 1
 					.keyAccessor(function (p) {
 						return p.value.date;
 					})
@@ -176,8 +187,10 @@
 					;
 				mainChart.yAxis()
 					.ticks(obj.keys.first.length)
-					.tickFormat(function (d) { return obj.labels.first + ' ' + obj.keys.first[d]; });;
-
+					//																	Group										
+					//.tickFormat(function (d) { return obj.labels.first + ' ' + obj.keys.first[d]; });
+					// sg korrektur -> Group 102, Group 101, ...
+					.tickFormat(function (d) { return obj.labels.first + ' ' + d ; });
 
 				// add filter charts: chartType, selector, indepVar, depVar, colors, margins
 				for (var i = 0, len = obj.filters.length; i < len; i++) {
@@ -189,7 +202,8 @@
 				// measure and send performance data
 				result.metrics.pageload = t1 - t0;
 				result.metrics.d3rendering = performance.now() - t1;
-				res.metrics.browser = navigator.userAgent.split(' ')[navigator.userAgent.split(' ').length-1].split('/')[0];
+				// res.metrics.browser = navigator.userAgent.split(' ')[navigator.userAgent.split(' ').length-1]
+				result.metrics.browser = navigator.userAgent.split(' ')[navigator.userAgent.split(' ').length-1].split('/')[0];
 				$.ajax({
 					type: "POST",
 					url: '/log/metrics',

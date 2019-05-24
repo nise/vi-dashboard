@@ -7,7 +7,9 @@ module.exports = {
 			title: "Access", link: "#", items: [
 				//{ title: "Playback", link: "/chart/playback"},
 				{ title: "Access ", link: "/chart/access" }
-				//,{ title: "Rewatching graphs", link: "/chart/rewatching" }
+				
+				// sg neu
+				//{ title: "Workload ", link: "/chart/workload" }
 			]
 		},
 		{
@@ -15,6 +17,8 @@ module.exports = {
 				//{ title: "Playback", link: "/chart/playback"},
 				{ title: "Playback peaks", link: "/chart/playback-peaks" },
 				{ title: "Rewatching graphs", link: "/chart/rewatching" },
+				// sg neu
+				//{ title: "Watch comparison", link: "/chart/watch-comparison" },
 				{ title: "Forward-backward diagram", link: "/chart/forward-backward" }
 			]
 		},
@@ -29,13 +33,23 @@ module.exports = {
 				{ title: "Group comparison", link: "/chart/groups" }
 			]
 		},
-		{
+		/*{
 			title: "Annotations", link: "#", items: [
-				{ title: "Qizes", link: "/chart/quiz" }
+				{ title: "Quizes", link: "/chart/quiz" }
 				//,{ title: "Group comparison", link: "/chart/groups" }
 			]
-		}
+		},*/
 		//,{ title: "Learning results", link: "#" }
+
+		{
+			title: "Learner Dashboard", link: "#", items: [
+				/*{ title: "v1 UserID 13", link: "/chart/learner-dashboard" },
+				{ title: "v2 UserID 20", link: "/chart/learner-dashboard-user2" },
+				{ title: "v3 UserID 13", link: "/chart/learner-dashboard-user3" },
+				{ title: "v4 UserID 13", link: "/chart/learner-dashboard-user4" },*/
+				{ title: "Learner Dashboard v5", link: "/chart/learner-dashboard-user5" }
+			]
+		}
 
 	],
 

@@ -1,208 +1,326 @@
 <% include layout %>
 
-<div class="row" id="chartCordtra">
-	<div class="main-chart col-md-9 col-9">
-		<h3>Rewatching Graphs</h3>
-		<hr>
-		<div id="mainChart" class="row"></div>
-		<div id="help" class="help">
-			<h4><span class="glyphicon glyphicon-question-sign"></span> Help</h4>
-			<div data-i18n="rewatching_chart.help.main"></div>
+	<div class="row" id="chartCordtra">
+		<div class="main-chart col-md-9 col-9">
+			<h3>Rewatching Graphs</h3>
+			<hr>
+			<div id="mainChart" class="row"></div>
+			<div id="help" class="help">
+				<h4><span class="glyphicon glyphicon-question-sign"></span> Help</h4>
+				<div data-i18n="rewatching_chart.help.main"></div>
+			</div>
+		</div>
+		<div class="filter-area col-md-3 col-3">
+			<h4>FILTER</h4>
+			<div>
+				<h5>Color coding</h5>
+				<select id="scope">
+					<option value=2>interaction context</option>
+					<option value=3>user session</option>
+				</select>
+			</div>
+			<div>
+				<h5>Groups</h5>
+				<div id="group-select"></div>
+			</div>
 		</div>
 	</div>
-	<div class="filter-area col-md-3 col-3">
-		<h4>FILTER</h4>
-		<div>
-			<h5>Color coding</h5>
-			<select id="scope">
-				<option value=2>interaction context</option>
-				<option value=3>user session</option>
-			</select>
-		</div>
-		<div>
-			<h5>Groups</h5>
-			<div id="group-select"></div>
-		</div>
 	</div>
-</div>
-</div>
 
-<% include scripts %>
+	<% include scripts %>
+	
+	<script>
+		const t0 = performance.now();
+		var observer = new Observer();
 
-<script>
-	const t0 = performance.now();
-	var observer = new Observer();
-
-	const video_keys = <% -JSON.stringify(videos, null, '\t') %>;
-	const context_keys = <% -JSON.stringify(context, null, '\t') %>;
-	const group_keys = <% -JSON.stringify(groups, null, '\t') %>;
-	const color_range = ['yellow', 'blue', 'purple', 'red', 'orange', 'green', 'black'];
-	const filterChartHeight = 150;
-	const filterSingleColors = d3.scale.ordinal().domain([0]).range(['#e6550d']);
-	const filterMultiColors = d3.scale.ordinal().domain(context_keys).range(color_range);
-
-	var
-		lastSelected = {},
-		obj = {},
-		current_obj = {},
-		current_filter = {}
-		;
-	obj.dim = { first: 0, second: 1, third: 2 };
-	obj.keys = { first: null, second: null, third: context_keys };
-	obj.labels = { first: 'Forward moves', second: 'Backward moves', third: 'Context' };
-	obj.filters = [];
-
-	// init filters
-	select_filter({ dim: 'video', type: 'radio', items: video_keys, selector: '#video-select' });
-	select_filter({ dim: 'group', type: 'radio', items: group_keys, selector: '#group-select' });
-	//select_filter('scope', 'radio', ['total', 'user', 'group'], '#scope-select', ['views', 'number of users who watched the segment']);
-	loadData(obj, { video: video_keys[0], group: group_keys[0] });
-
-	//phaseRingChart   = dc.pieChart("#chart-ring-phase")
-	//contextRowChart = dc.rowChart("#context-chart"),
-	//userRowChart = dc.rowChart("#user-chart"),
-	//videoRowChart = dc.rowChart("#video-chart")
-
-	$('#scope').on('change', function (e) {
-		current_obj.dim.third = parseInt($(this).val(), 10);
-		loadData(current_obj, { video: video_keys[0], group: group_keys[0] });// current_filter);
-	});
-
-	function remove_empty_bins(source_group) {
-		return {
-			all: function () {
-				return source_group.all().filter(function (d) { //alert(JSON.stringify(d))
-					return d.value != 0;
-				});
-			}
-		};
-	}
-
-	/*
-	*
-	*/
-	function loadData(obj, filter) {
-		//alert(JSON.stringify(filter))
-		current_obj = obj;
-		current_filter = obj;
-		$("#mainChart").empty();
+		// JSON.stringify(value[, replacer[, space]])
+		const video_keys = <%-JSON.stringify(videos, null, '\t') %>;
+		// console.log("video_keys: ", video_keys);
+		// -> video_key:  Array [ 
+		// 	"e2script_lecture1_improved.mp4", "e2script_lecture2_improved.mp4", "e2script_lecture3_improved.mp4", "e2script_lecture4_improved.mp4", "e2script_lecture5_improved.mp4" 
+		// ]
+		const context_keys = <%-JSON.stringify(context, null, '\t') %>;
+		// console.log("context_keys: ", context_keys);
+		// -> context_keys:  Array [ "player", "toc", "comments", "playbackSpeed", "assessment", "hyperlinks", "skipBack" ]
+		const group_keys = <%-JSON.stringify(groups, null, '\t') %>;
+		const color_range = ['yellow', 'blue', 'purple', 'red', 'orange', 'green', 'black'];
+		const filterChartHeight = 150;
+		// sg - jeweils keine Auswirkungen
+		//const filterSingleColors = d3.scale.ordinal().domain([0]).range(['#e6550d']); // orange
+		//const filterMultiColors = d3.scale.ordinal().domain(context_keys).range(color_range);
 
 		var
-			dateTimeFormat = d3.time.format('%M:%S'),
-			hours = d3.time.format('%H'),
-			//group_names = ['a', 'b', 'c', 'd', 'e', 'f'],
-			context_keys = ['assessment', 'comments', 'hyperlinks', 'playbackSpeed', 'player', 'skipBack', 'toc'],
-			color_range = ['yellow', 'blue', 'purple', 'red', 'orange', 'green', 'black'],
-			formatTime = d3.time.format("%M:%S")
-			;
+			lastSelected = {},
+			current_obj = {},
+			current_filter = {},
+			obj = {};
+		obj.dim = { first: 0, second: 1, third: 2 }; // zieht unten beim colorAccessor // 0 - 3 
+		obj.keys = { first: null, second: null, third: context_keys };
+		obj.labels = { first: 'Forward moves', second: 'Backward moves', third: 'Context' };
+		obj.filters = [];
 
-		// load data of group
-		d3.json("/cached/data/rewatching/group/" + filter['group'] + "/video/" + filter['video'], function (error, res) {
-			var the_data = res.data;
-			if (the_data === undefined) {
-				return;
-			}
-			const t1 = performance.now();
+		// init filters
+		//select_filter({ dim: 'video', type: 'radio', items: video_keys, selector: '#video-select' });
+		select_filter({ dim: 'group', type: 'radio', items: group_keys, selector: '#group-select' });
+		//select_filter('scope', 'radio', ['total', 'user', 'group'], '#scope-select', ['views', 'number of users who watched the segment']);
+	
+		// loadData on pageload with first values
+		loadData(obj, { video: video_keys[0], group: group_keys[0] });
 
-			// iterate users
-			for (var i = 0; i < the_data.length; i++) {
-				data = the_data[i].a;
+		//phaseRingChart   = dc.pieChart("#chart-ring-phase")
+		//contextRowChart = dc.rowChart("#context-chart"),
+		//userRowChart = dc.rowChart("#user-chart"),
+		//videoRowChart = dc.rowChart("#video-chart")
 
-				var el = document.createElement('div');
-				el.classList.add('col-md-6');
-				el.setAttribute("id", 'user' + i);
-				parent = document.getElementById("mainChart");
-				parent.appendChild(el);
 
-				var chart = dc.scatterPlot("#user" + i);
+		// Änderung des Filters Color-Coding
+		$('#scope').on('change', function (e) {
+			// value nach Scope-Wechsel neu setzen
+			// get current scope-value:
 
-				data.forEach(function (d) {
-					//var t = d.t.split(':')[0];
-					//d.time = t.charAt(0) === '0' ? +t.charAt(1) : +t;
-					d.time = +d.t;
-				});
+			// sg alt: current_obj.dim.third = parseInt($(this).val(), 10);
+			// sg neu: current_object.dim ist "group" da obj aus select_filter -> überschreiben mit scope-value
+			current_obj.dim = { third: parseInt($(this).val(), 10) };
+			console.log("current_obj.dim.third: ", current_obj.dim.third); // Wechsel zu User Session => 3 klappt auch!
 
-				var ndx = crossfilter(data),
-					mainDimension = ndx.dimension(function (d) {
-						return [d.p, d.time, d.c, d.d]
-					});
-				mainGroup = mainDimension.group().reduceSum(function (d) { return d.time; });
-				//
-
-				var
-					yRange = [
-						0, // static for consistent display
-						24
-						//d3.min(mainGroup.all(), function (d) { return +d.key[1]; }),
-						//d3.max(mainGroup.all(), function (d) { return +d.key[1]; })
-					],
-					xRange = [
-						d3.min(mainGroup.all(), function (d) { return +d.key[0]; }),
-						d3.max(mainGroup.all(), function (d) { return +d.key[0]; })
-					];
-
-				/*	var symbolScale = d3.scale.ordinal().range(d3.svg.symbolTypes);
-					var symbolAccessor = function (d) { return symbolScale(d.key[2]); };
-					var subChart = function (c) {
-						return dc.scatterPlot(c)
-							.symbol(symbolAccessor)
-							.symbolSize(8)
-							.highlightedSize(10)
-					};
-*/
-				chart
-					.width($("#user" + i).width())
-					.height($("#user" + i).width() * 0.75)
-					//    .chart(subChart)
-
-					.margins({ top: 20, right: 30, bottom: 30, left: 45 })
-					.x(d3.scale.linear().domain(xRange).range(xRange))
-					.y(d3.scale.linear().domain([0, 24]).range(yRange))
-					.brushOn(false)
-					.symbolSize(3)
-					//    .symbolAccessor(function(kv) { return kv.key[2]; })
-					// 	.symbol(function(kv) { return kv.key[2]; })
-					.colorAccessor(function (kv) { if (kv !== undefined) { return kv.key[obj.dim.third]; } })
-					.colors(d3.scale.ordinal().domain(context_keys).range(color_range))
-					.yAxisLabel("Hour of day")
-					.xAxisLabel("Playback time / s")
-					.clipPadding(10)
-					.dimension(mainDimension)
-					.group(mainGroup)
-					;
-
-				chart.yAxis().tickFormat(function (h) { return h + ":00"; }).tickValues([0, 3, 6, 9, 12, 15, 18, 21, 24]);//.ticks(6);
-				chart.xAxis()
-					.ticks(6)
-					//.ticks(d3.time.minutes, 10)
-					.tickFormat(function (d) {
-						return dateTimeFormat(new Date(2012, 1, 1, 0, 0, 0, d));
-					})
-					;
-
-				/*dc.override(chart, 'legendables', function () {
-					var legendables = [{chart:{__dcFlag__:1},color:"red"}];//chart._legendables();
-					alert(JSON.stringify(legendables))
-					return legendables;//.sort(function (a, b) { });
-				});*/
-				chart.legend(dc.legend().x(chart.width() - 30).y(0).itemHeight(13).gap(5))
-				chart.legendables(function (d) { //alert(JSON.stringify(d)); 
-					return [{ chart: { __dcFlag__: 1 }, color: "red" }];
-				});
-				chart.render();
-			}// end for
-			//dc.renderAll();
-			res.metrics.pageload = t1 - t0;
-			res.metrics.d3rendering = performance.now() - t1;
-			res.metrics.browser = navigator.userAgent.split(' ')[navigator.userAgent.split(' ').length - 1].split('/')[0];
-			$.ajax({
-				type: "POST",
-				url: '/log/metrics',
-				data: res.metrics,
-				dataType: 'json'
-			});
+			// sg alt: loadData(current_obj, { video: video_keys[0], group: group_keys[0] });// current_filter);
+			// sg neu: nach Scopewechsel Übergabe des aktuellen Filters, damit kein Rücksprung auf g97
+			loadData(current_obj, { video: current_filter.video, group: current_filter.group } ) ;
 		});
-	}// end load
-</script>
 
-<% include footer %>
+		function remove_empty_bins(source_group) {
+			return {
+				all: function () {
+					return source_group.all().filter(function (d) { //alert(JSON.stringify(d))
+						return d.value != 0;
+					});
+				}
+			};
+		}
+
+		/*
+		*
+		*/
+		function loadData(obj, filter) {
+			console.log("loadDataFunction: ", " obj: ", obj, " filter: ", filter);
+			// alert(JSON.stringify(filter))  // -> {"video":"e2script_lecture1_improved.mp4","group":97}
+			// sg - aktuelle Parameter in current_obj bzw. current_filter sichern:
+			current_obj = obj; 
+			console.log("current_obj: ", current_obj );
+			current_filter = filter; // ??? // sg - vorher: current_filter = obj;
+			console.log("current_filter: ", current_filter );
+			// canvas leeren
+			$("#mainChart").empty();
+
+			var
+				dateTimeFormat = d3.time.format('%M:%S'),
+				hours = d3.time.format('%H'),
+				//group_names = ['a', 'b', 'c', 'd', 'e', 'f'],
+				// sg - doppelt!
+				context_keys = ['assessment', 'comments', 'hyperlinks', 'playbackSpeed', 'player', 'skipBack', 'toc'],
+				// sg - doppelt!
+				color_range = ['yellow', 'blue', 'purple', 'red', 'orange', 'green', 'black'],
+				formatTime = d3.time.format("%M:%S");
+
+			// load data of group
+			// d3.json("/cached/data/rewatching/group/" + filter['group'] + "/video/" + filter['video'], function (error, res) {
+			d3.json("/cached/data/rewatching/group/" + filter.group, function (error, res) {
+				var the_data = res.data;
+				if (the_data === undefined) {
+					return;
+				}
+				const t1 = performance.now();
+
+				// console.log("the_data: ", the_data);
+				// [ length 3 ]
+				// 0: {a: Array(3186), v: "e2script_lecture1_improved.mp4", u: 19, g: 97},
+				// 1: {a: Array(1797), v: "e2script_lecture1_improved.mp4", u: 9, g: 97},
+				// 2: {a: Array(22), v: "e2script_lecture1_improved.mp4", u: 18, g: 97}
+
+				console.log("obj.dim.third: ", obj.dim.third, "!!!");
+
+
+				// iterate users - one chart for every user of the group
+				for (var i = 0; i < the_data.length; i++) {
+					// console.log("ForLoop: ", i, "========================");
+
+					// sg - Variable für Beschriftung
+					let userId = the_data[i].u;
+					let groupId = the_data[i].g;
+					// let videoId = the_data[i].v;
+
+					data = the_data[i].a;
+					// console.log("data: ", data);
+					// console.log("proUser: ", userId);
+
+					// div Element
+					var el = document.createElement('div');
+					el.classList.add('col-md-6');
+					// sg - eindeutiges User-ID in div
+					el.setAttribute("id", "user" + userId);
+					//el.setAttribute("id", 'user' + i); // sg - vorher
+					
+					// sg - span-Element für Überschrift
+					let elUeb = document.createElement("span");
+					elUeb.setAttribute("id", "UebUser" + userId)
+					el.appendChild(elUeb);
+
+					parent = document.getElementById("mainChart");
+					parent.appendChild(el);
+
+					// sg - Chart-Überschrift
+					// divTitle = document.createElement("strong");
+
+					// sg - Überschrift einsetzen
+					$("#UebUser" + userId).html("<strong>GroupID: " + groupId + " | UserID: " +  userId + "</strong>");
+
+					/*****************************************************
+					 * Step1: Create the dj.js chart objects & link to div
+					 *****************************************************/
+					var chart = dc.scatterPlot("#user" + the_data[i].u );
+					// var chart = dc.scatterPlot("#user" + i);
+
+					// sg - property t zu time ??
+					data.forEach(function (d) {
+						//var t = d.t.split(':')[0];
+						//d.time = t.charAt(0) === '0' ? +t.charAt(1) : +t;
+						d.time = +d.t;
+					});
+					// console.log("[i]-data[0].time: ", data[0].time); // -> z.B. 7 für 7Uhr
+					// console.log("[i]-data[0].p: ", data[0].p); // -> z.B. 3 für Sekunde 3???
+
+
+					/*****************************************
+					* Step2: Run the data through crossfilter*
+					*****************************************/
+					var ndx = crossfilter(data);
+
+					/******************************************************
+					* Step3: Create the Dimensions                        *
+					* A dimension is something to group or filter by.     *
+					* Crossfilter can filter by exact value, or by range. *
+					******************************************************/
+					// sg - group or filter by 
+					//	0 playbacktime, 
+					//  1 time(hourOfDay), 
+					//  2 context, 
+					//  3 day(dayOfYear)
+					var mainDimension = ndx.dimension(function (d) {	
+						// d.key[0], d.key[1], d.key[2], d.key[3]
+						return [d.p, d.time, d.c, d.d]
+						});
+					
+					// sg - reduce by time - function is the sum values of the records
+					mainGroup = mainDimension.group().reduceSum(function (d) { return d.time; });
+					
+					// sg - für testoutput:
+					var outp = mainGroup.top(4)
+					// console.log("mainGroup #1 - value: " + outp[0].value + " key: " + outp[0].key);
+					// console.log("mainGroup #2 - value: " + outp[1].value + " key: " + outp[1].key);
+					// console.log("mainGroup #3 - value: " + outp[2].value + " key: " + outp[2].key);
+					// console.log("mainGroup #4 - value: " + outp[3].value + " key: " + outp[3].key);
+					// -> mainGroup #1 - value: 84 key: 1588,21,player,306
+					// -> mainGroup #2 - value: 42 key: 1588,21,assessment,306
+					// -> mainGroup #3 - value: 21 key: 1585,21,player,306
+					// -> mainGroup #4 - value: 21 key: 1586,21,player,306
+
+					var
+						yRange = [
+							0, 24 // static for consistent display
+							//d3.min(mainGroup.all(), function (d) { return +d.key[1]; }),
+							//d3.max(mainGroup.all(), function (d) { return +d.key[1]; })
+						],
+						xRange = [ // playback-time
+							d3.min(mainGroup.all(), function (d) { return +d.key[0]; }),
+							d3.max(mainGroup.all(), function (d) { return +d.key[0]; })
+						];
+
+					/*	var symbolScale = d3.scale.ordinal().range(d3.svg.symbolTypes);
+						var symbolAccessor = function (d) { return symbolScale(d.key[2]); };
+						var subChart = function (c) {
+							return dc.scatterPlot(c)
+								.symbol(symbolAccessor)
+								.symbolSize(8)
+								.highlightedSize(10)
+						}; */
+
+					/***************************************
+					* 	Step4: Create the Visualisations   *
+					***************************************/
+					chart
+						.width($("#user" + i).width())
+						.height($("#user" + i).width() * 0.75)
+						//    .chart(subChart)
+
+						.margins({ top: 20, right: 30, bottom: 30, left: 45 })
+						.x(d3.scale.linear().domain(xRange).range(xRange))
+						.y(d3.scale.linear().domain([0, 24]).range(yRange))
+						.brushOn(false)
+						.symbolSize(3)
+						//    .symbolAccessor(function(kv) { return kv.key[2]; })
+						// 	.symbol(function(kv) { return kv.key[2]; })
+						// sg - kv.key[2] interaction context kv.key[3] user session
+						.colorAccessor(function (kv) { if (kv !== undefined) { // console.log("kv.key[2]: ", kv.key[2]); // -> player | assessment | ...
+																																	// wenn über Radio, dann === undefined 
+																	//			console.log("kv.key[obj.dim.third]: ", kv.key[obj.dim.third]);
+																							return kv.key[obj.dim.third]; } }) 
+																																	// Action by Day!! ->
+																																	// kv.key[3]:  311
+																																	// kv.key[3]:  310  
+																																	// kv.key[3]:  311  
+																																	// ....
+						.colors(d3.scale.ordinal().domain(context_keys).range(color_range))  // player == yellow oder orange????
+						.yAxisLabel("Hour of day")
+						.xAxisLabel("Playback time / s")
+						.clipPadding(10)
+						.dimension(mainDimension) // für x 
+						.group(mainGroup) // für y // -> value: 84 key: 1588,21,player,306
+						// .renderHorizontalGridLines(true)
+						;
+
+					chart.yAxis().tickFormat(function (h) { return h + ":00"; }).tickValues([0, 3, 6, 9, 12, 15, 18, 21, 24]);//.ticks(6);
+					chart.xAxis()
+						.ticks(6)
+						//.ticks(d3.time.minutes, 10)
+						// sg - vorher Null zu viel: .tickFormat(function (d) { return dateTimeFormat(new Date(2012, 1, 1, 0, 0, 0, d)); })
+						.tickFormat(function (d) { return dateTimeFormat(new Date(2012, 1, 1, 0, 0, d)); })
+						//.tickFormat(function (d) { return dateTimeFormat(d.p); })
+						;
+
+					/*dc.override(chart, 'legendables', function () {
+						var legendables = [{chart:{__dcFlag__:1},color:"red"}];//chart._legendables();
+						alert(JSON.stringify(legendables))
+						return legendables;//.sort(function (a, b) { });
+					});*/
+
+					// sg - Legende
+					// .legendText(function(d){return d.name})
+					chart.legend(dc.legend().x(chart.width() - 30).y(0).itemHeight(13).gap(5))
+					.group(mainGroup) // für y
+					
+					// sg - wofür??
+					// sg - There is a function chart.legendables() which is called internally by the legend in order to retrieve the items to draw in the legend.
+					// chart.legendables(function (d) { //alert(JSON.stringify(d)); 
+					// 	return [{ chart: { __dcFlag__: 1 }, color: "red" }]; });
+
+					// .title(function(d) { return "ntest123" }) // ändert label der Punkte
+
+					chart.render();
+				}// end for
+				//dc.renderAll();
+
+				// metrics
+				res.metrics.pageload = t1 - t0;
+				res.metrics.d3rendering = performance.now() - t1;
+				res.metrics.browser = navigator.userAgent.split(' ')[navigator.userAgent.split(' ').length-1].split('/')[0];
+				$.ajax({
+					type: "POST",
+					url: '/log/metrics',
+					data: res.metrics,
+					dataType: 'json'
+				});
+			});
+		}// end load
+	</script>
+
+	<% include footer %>

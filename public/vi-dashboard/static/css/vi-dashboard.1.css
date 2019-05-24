@@ -1,0 +1,443 @@
+	body {
+			margin: 0px;
+			background-color: #fff;
+			font-family: Arial;
+		}
+		text {
+			font-size: 11px;
+		}
+        h2{
+            font-size:1.6em;
+        }
+        h4{
+            font-size:1.2em;
+        }    
+		h5 {
+			margin-bottom: 4;
+		}
+        h3.title a { 
+			color:#fff;
+        }
+        h3.title { 
+            margin:10px 0 0 0;
+        }
+        .container {
+            margin-left:0;
+        }
+
+		.main {
+			margin: 0;
+			padding:3   0px;
+		}
+		.help {
+			font-size: .9em;
+		}
+
+		.sidepanel {
+			position: relative;
+			padding-right: 0;
+		}
+
+		.main-chart {
+			margin-top: 0px;
+			padding: 0 10px 0px 10px;
+		
+			min-height: 350px;
+		}
+
+		.filter-area {
+			padding: 0px 10px 20px 10px;
+			margin: 0px 0 0 0;
+			border-left: solid 1px #ccc;
+			background-color: #fff;
+            height:100vh;
+            display:block;
+		}
+
+		.filter-area h5 {
+			margin: 18px 0 0 0;
+            font-weight:bold;
+            color:777;
+		}
+
+        .filter-reset{
+            font-size:12px;
+            float:right;
+        }
+
+		.main-chart {
+			background-color: #fff;
+		}
+
+		.checkbox label,
+		.radio label,
+		label {
+			color: #000;
+			font-size: 11px;
+            font-weight:normal;
+            margin:0;
+            padding-top:0px;
+		}
+
+		input[type="radio"],
+		input[type="checkbox"] {
+			margin: 0px 4px 0 0;
+            
+		}
+
+		#Chart {
+			position: relative;
+		}
+
+		#Chart .val {
+			position: absolute;
+			left: 0;
+			bottom: 0;
+			text-align: center;
+		}
+		/**/
+
+		#chartFB path {
+			stroke: steelblue;
+			stroke-width: 2;
+			fill: none;
+		}
+
+
+		#chartFB .legend rect {
+			fill:white;
+			stroke:none;
+			opacity:0.8;
+		}
+		
+		/**/
+
+		#chartPlayback #Chart .val {
+			position: absolute;
+			left: 0;
+			bottom: 0;
+			text-align: center;
+		}
+
+		#chartPlayback .barLabel {
+			fill: #444;
+			font-size: 12px;
+			text-anchor: start;
+			width: 40;
+			/*transform: rotate(90deg);
+			transform-origin: 50% 50%;*/
+		}
+
+		#chartPlayback #chart-row-spenders2 text.row {
+			fill: #555;
+		}
+
+		#chartPlayback #chart-row-spenders text.row {
+			fill: #fff;
+		}
+
+		#chartPlayback .dc-chart .pie-slice-group path {
+			stroke: white;
+			stroke-width: 2;
+		}
+		/**/
+
+		#chartCordtra #Chart .val {
+			position: absolute;
+			left: 0;
+			bottom: 0;
+			text-align: center;
+		}
+
+		#chartCordtra .barLabel {
+			fill: #444;
+			font-size: 12px;
+			text-anchor: start;
+			width: 40;
+			/*transform: rotate(90deg);
+			transform-origin: 50% 50%;*/
+		}
+
+		#chartCordtra #context-chart text.row,
+		#chart-ring-phase text.row {
+			fill: #555;
+		}
+		/**/
+
+		#chartPlaybackInteractions #chart-hist-spend.dc-chart svg g g.chart-body g.stack._0 text.barLabel {
+			fill: #444;
+			font-size: 12px;
+			text-anchor: middle;
+			width: 40;
+			/*transform: rotate(5deg);
+			transform-origin: 10% 100%;*/
+		}
+
+		#chartPlaybackInteractions #chart-row-spenders2 text.row {
+			fill: #555;
+		}
+
+		#chartPlaybackInteractions #chart-row-spenders text.row {
+			fill: #fff;
+		}
+
+		#chartPlaybackInteractions.dc-chart .pie-slice-group path {
+			stroke: white;
+			stroke-width: 2;
+		}
+		/**/
+
+		
+
+		#mainPeakChart path,
+		#mainSpeedChart path {
+			fill: none;
+			stroke: #000;
+			stroke-width: 2px;
+		}
+
+		#mainPeakChart path.cardinal,
+		#mainSpeedChart path.cardinal {
+			stroke: #666;
+			stroke-width: 2px;
+		}
+
+		#mainPeakChart path.area,
+		#mainSpeedChart path.are {
+			stroke: none;
+			stroke-width: 0px;
+			fill: #fff;
+			fill-opacity: .2;
+		}
+
+		#mainPeakChart circle.peak,
+		#mainSpeedChart circle.peak {
+			fill: #666;
+		}
+
+		#mainPeakChart .main-segment,
+		#mainSpeedChart .main-segment {
+			fill: #e6550d;
+			stroke: none;
+		}
+
+		#mainPeakChart .poi-line{
+			stroke: #666;
+			stroke-width: 1;
+			opacity:0.4;
+			fill:none;
+			
+		}
+		
+		.hair-line{
+			fill: none;
+			stroke: grey;
+			opacity: .1;
+			stroke-width: 1;
+			shape-rendering: crispEdges;
+			
+		}
+
+		#mainPeakChart .poi-label{
+			fill: #666;
+			padding:2px 4px;
+			stroke: none;
+			opacity:0.4;
+		}
+
+
+
+	
+
+		#mainAccessChart path{
+			fill: none;
+			stroke: #333;
+			stroke-width: 2px;
+		}
+
+		#mainAccessChart .line{
+			fill: #ddd;
+			stroke: #333;
+			stroke-width: 1px;
+		}
+		#mainAccessChart .dots{
+			fill: #555;
+			stroke:none;
+		}
+
+		#dropAccessChart .title,
+		#weekdaysAccessChart .title, 
+		#mainAccessChart .title,
+		#hoursAccessChart .title {
+			fill: #555;
+			stroke:none;
+			font-size:1.2em;
+			font-weight: bold;
+		}
+
+		
+
+       
+        
+        #mainGroup .axis {
+            font-size: 13px;
+        }
+        
+        #mainGroup .axis path,
+        #mainGroup .axis line {
+            fill: none;
+            display: none;
+        }
+        
+        #mainGroup .label {
+            font-size: 11px;
+            font-weight:normal;
+		}
+		
+		#mainGroup .title {
+			cursor: help;
+		}
+
+		#groupCompChart .err-bar{
+			color:red;
+			fill:red;
+			opacity:0.4;
+		}
+
+		#chartPlaybackHist .bar rect {
+		shape-rendering: crispEdges;
+		}
+
+		#chartPlaybackHist .bar text {
+		fill: #999999;
+		}
+
+		
+
+	
+
+		#chartPlaybackHist .legend {
+			font-size:10px;
+		}
+
+		
+
+		.d3-tip {
+			line-height: 1.4em;
+			font-size:0.8em;
+			padding: 2px 6px;
+			background:	rgba(200, 220, 255, 0.8);
+			color: #111;
+			border-radius: 3px;
+		}
+
+/* Creates a small triangle extender for the tooltip */
+.d3-tip:after {
+  box-sizing: border-box;
+  display: none;
+  font-size: 10px;
+  width: 100%;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.8);
+  content: "\25BC";
+  position: absolute;
+  text-align: center;
+}
+
+
+
+		@media (min-width: 768px) {
+			.navbar .navbar-collapse {
+				padding: 0 0 10px 0;
+				
+			}
+			.navbar {
+				margin-bottom: 0px !important;
+                background-color:#5f89ad;
+			}
+			.navbar.navbar-inverse .dropdown-menu {
+				position: relative;
+				background-color: inherit;
+
+				margin-left: 10px;
+				margin-top: 0;
+			}
+			.navbar-nav>li>a,
+			.navbar .navbar-nav>li>a,
+			.navbar .navbar-nav>li {
+				padding-top: 5px;
+				padding-bottom: 5px;
+			}
+			.navbar-nav>li.level-1>span {
+				font-weight: bold;
+			}
+			.navbar-nav>li.open>a,
+			.navbar .navbar-nav>li.open>a {
+				padding-top: 5px;
+				padding-bottom: 5px;
+			}
+			.navbar.navbar-inverse .dropdown-menu li>a {
+				font-size: 10pt;
+				padding: 0 0 0 10px;
+				color: #fff;
+			}
+           ul.navbar-nav li.level-1{
+               padding-right:40px;
+           }
+            ul.navbar-nav li.level-1 > ul {
+                padding-left:0px;
+            }
+			ul.nav li ul li {
+				list-style: none;
+				font-size: 9pt;
+			}
+			ul.nav li ul li a {
+				color: #fff;
+			}
+			.row {
+				margin-right: 0;
+			}
+			
+		}
+
+
+		/* General D3 Styles */
+		.axis path, 
+		.axis line, 
+		.domain {
+			fill: none;
+			stroke: grey;
+			stroke-width: 1;
+			shape-rendering: crispEdges;
+		}
+
+
+		.chart-title {
+			font-size: 1em;
+			font-weight: normal;
+			fill:#666;
+		}
+
+		.small {
+			font-size: .9em;
+		}
+
+		.main-chart-color{
+			fill:#555;
+		}
+
+		highlight-chart-color{
+			fill:red;
+		}
+
+		/*trash??*/
+		.area {
+			fill: steelblue;
+			clip-path: url(#clip);
+		  }
+		  
+		.zoom {
+			cursor: move;
+			fill: none;
+			pointer-events: all;
+		}

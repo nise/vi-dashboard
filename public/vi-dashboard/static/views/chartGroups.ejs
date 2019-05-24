@@ -77,7 +77,7 @@
                             const t0 = performance.now();
                             var
                                 category_mapping = {
-                                    'playback': { cat: 'playback', title: 'Playback Time', unit: 'h' },
+                                    'playback': { cat: 'playback', title: 'Playback', unit: 'min' },
                                     'total_activities': { cat: 'interactions', title: 'Total Activities', unit: 'clicks' },
                                     'annotations_created': { cat: 'annotations', title: 'Number of created annotations' },
                                     'annotations_edited': { cat: 'annotations', title: 'Number of edited annotations' },
@@ -105,7 +105,8 @@
                                 plot(scope);
                                 data.metrics.pageload = t1 - t0;
                                 data.metrics.d3rendering = performance.now() - t1;
-                                res.metrics.browser = navigator.userAgent.split(' ')[navigator.userAgent.split(' ').length - 1].split('/')[0];
+                                // sg korrektur: res.metrics.browser = navigator.userAgent.split(' ')[navigator.userAgent.split(' ').length - 1].split('/')[0];
+                                data.metrics.browser = navigator.userAgent.split(' ')[navigator.userAgent.split(' ').length - 1].split('/')[0];
                                 $.ajax({
                                     type: "POST",
                                     url: '/log/metrics',
@@ -115,6 +116,7 @@
 
                             });
 
+                            // bei Scope-Wechsel erneut plot mit neuem scope
                             $('#scope').on('change', function (e) {
                                 $('.plot-area').empty();
                                 plot($(this).val());
@@ -244,7 +246,8 @@
                                                     return scope === 'rel' ? (d[scope] * 100).toFixed(1) + '%' : d[scope].toFixed(0);
                                                 });
 
-                                            // Error Bars
+                                            // Error Bars 
+                                            // Anzeige nur bei Scope abs und rel
                                             if (['abs', 'rel'].indexOf(scope) > -1) {
                                                 bars.append("rect")
                                                     .attr("class", "err-bar highlight-chart-color")
@@ -253,16 +256,21 @@
                                                     })
                                                     .attr("height", 2)
                                                     .attr("x", function (d) {
+                                                        // x nominal für abs
                                                         if (scope === 'abs') {
+                                                            //       d.abs    ./. ( d.Standardabweichung / Wurzel(user) / 2 )
                                                             return x(d[scope] - ((d.dev / Math.sqrt(d.n)) / 2));
                                                         } else {
+                                                        // x prozentual für rel
                                                             return x((d[scope] - ((d.dev / Math.sqrt(d.n) / 100) / 2)));
                                                         }
                                                     })
                                                     .attr("width", function (d) {
+                                                        // x nominal für abs
                                                         if (scope === 'abs') {
                                                             return x(d.dev / Math.sqrt(d.n));
                                                         } else {
+                                                        // x prozentual für rel
                                                             return x((d.dev / Math.sqrt(d.n) / 100));
                                                         }
                                                         return 0;

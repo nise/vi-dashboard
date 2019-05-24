@@ -1,229 +1,292 @@
 <% include layout %>
 
-	<div class="row" id="chartPlaybackInteractions">
-		<div class="main-chart col-md-9 col-9">
-			<h3>Playback Interactions</h3>
-			<hr>
-			<div id="chart-hist-spend"></div>
-			<div id="help" class="help">
-				<h4><span class="glyphicon glyphicon-question-sign"></span> Help</h4>
-				<div data-i18n="playback_interaction_chart.help.main"></div>
-			</div>
-		</div>
+<div class="row" id="chartPlaybackInteractions">
 
-		<div class="filter-area col-md-3 col-3">
-			<h4>FILTER</h4>
-			<div class="">
-				<h5>Groups</h5>
-				<div id="chart-row-spenders"></div>
-			</div>
-			<div class="">
-				<h5>Interaction Context</h5>
-				<div id="chart-row-spenders2"></div>
-			</div>
-			<div class="">
-				<h5>Common Interactions</h5>
-				<div id="chart-row-spenders3"></div>
-			</div>
-			<div class="">
-				<h5>Course Phases</h5>
-				<div id="chart-ring-phase"></div>
-			</div>
+	<div id="main-chart" class="main-chart col-lg-9 col-md-9 col-xs-9">
+		<h3>Playback Interactions</h3>
+		<hr>
+		<div id="chart-hist-spend"></div>
+		<div id="help" class="help">
+			<h4><span class="glyphicon glyphicon-question-sign"></span> Help</h4>
+			<div data-i18n="playback_interaction_chart.help.main"></div>
 		</div>
 	</div>
-	
-	<% include scripts %>
 
-	<script>
-		var phaseRingChart = dc.pieChart("#chart-ring-phase"),
-			mainChart = dc.barChart("#chart-hist-spend"),
-			spenderRowChart = dc.rowChart("#chart-row-spenders"),
-			spenderRowChart2 = dc.rowChart("#chart-row-spenders2"),
-			spenderRowChart3 = dc.rowChart("#chart-row-spenders3"),
-			context_keys = ['assessment', 'comments', 'hyperlinks', 'playbackSpeed', 'player', 'skipBack', 'toc'],
-			color_range = ['yellow', 'blue', 'purple', 'red', 'orange', 'green', 'black'],
-			common_types = ['added-new-annotation', 'removed-annotation', 'menu-click', 'updated-annotation', 'timeline-link-click']
-			;
+	<div class="filter-area col-lg-3 col-md-3 col-xs-12">
+		<h4>FILTER <a class="filter-reset" href="javascript:observer.resetCharts();">reset</a></h4>
+		<div class="">
+			<h5>Groups</h5>
+			<div id="chart-row-spenders"></div>
+		</div>
+		<div class="">
+			<h5>Interaction Context</h5>
+			<div id="chart-row-spenders2"></div>
+		</div>
+		<div class="">
+			<h5>Common Interactions</h5>
+			<div id="chart-row-spenders3"></div>
+		</div>
+		<div class="">
+			<h5>Course Phases</h5>
+			<div id="chart-ring-phase"></div>
+		</div>
+	</div>
 
-		spendData = <%-JSON.stringify(items, null, '\t') %>;
+</div>
 
-		// normalize/parse data
-		spendData.forEach(function (d) {
-			d.group = d["_id"].g;
-			d.phase = d["_id"].p;
-			d.type = d["_id"].t;
-			d.context = d["_id"].c;
-			d.total = +d.s;
-			d["_id"] = {};
-		});
-		function remove_empty_bins(source_group) {
-			return {
-				all: function () {
-					return source_group.all().filter(function (d) { //alert(JSON.stringify(d))
-						return common_types.indexOf(d.key) === -1 ? 0 : 1;
-					});
-				}
-			};
-		}
-		// set crossfilter
-		var ndx = crossfilter(spendData),
+<% include scripts %>
 
-			phaseDim = ndx.dimension(function (d) { return +d.phase; }),
-			actionsPerPhase = phaseDim.group().reduceSum(function (d) { return +d.total; }),
+<script>
+	var phaseRingChart = dc.pieChart("#chart-ring-phase"),
+		mainChart = dc.barChart("#chart-hist-spend"),
+		spenderRowChart = dc.rowChart("#chart-row-spenders"),
+		spenderRowChart2 = dc.rowChart("#chart-row-spenders2"),
+		spenderRowChart3 = dc.rowChart("#chart-row-spenders3"),
+		context_keys = ['assessment', 'comments', 'hyperlinks', 'playbackSpeed', 'player', 'skipBack', 'toc'],
+		color_range = ['yellow', 'blue', 'purple', 'red', 'orange', 'green', 'black'],
+		common_types = ['added-new-annotation', 'removed-annotation', 'menu-click', 'updated-annotation', 'timeline-link-click']
+		width = document.getElementById('main-chart').offsetWidth;
+		;
 
-			typeDim = ndx.dimension(function (d) { return d.type; }),
-			actionsPerType = typeDim.group().reduceSum(function (d) { return +d.total; }),
-			actionsPerType = remove_empty_bins(actionsPerType),
+	var observer = new Observer();
+	spendData = <%-JSON.stringify(items, null, '\t') %>;
 
-
-			groupDim = ndx.dimension(function (d) { return d.group; }),
-			actionsPerGroup = groupDim.group().reduceSum(function (d) { return +d.total; }),
-
-			contextDim = ndx.dimension(function (d) { return d.context; }),
-			actionsPerContext = contextDim.group().reduceSum(function (d) { return +d.total; }),
-
-			mainDim = ndx.dimension(function (d) {
-				return [d.type, d.context];
-				//return [d.type, d.context, +d.total, d.phase]; 
-			}),
-			mainGroup = mainDim.group().reduceSum(function (d) { return +d.total; }),
+	// data[1]
+	// { _id: { g: 97, 	// group
+	// 					p: 6, 	// phase
+	// 					t: 'added-new-annotation', // action_type
+	// 					c: 'assessment' },	// action_context
+	// 	s: 1 } // summe
 
 
+	// normalize/parse data
+	spendData.forEach(function (d) {
+		d.group = d["_id"].g;
+		d.phase = d["_id"].p;
+		d.type = d["_id"].t;
+		d.context = d["_id"].c;
+		d.total = +d.s;
+		d["_id"] = {};
+	});
+	function remove_empty_bins(source_group) {
+		return {
+			all: function () {
+				return source_group.all().filter(function (d) { //alert(JSON.stringify(d))
+					return common_types.indexOf(d.key) === -1 ? 0 : 1;
+				});
+			}
+		};
+	}
+	// set crossfilter
+	var ndx = crossfilter(spendData),
 
-			mainGroup3 = mainDim.group().reduce(
-				/* callback for when data is added to the current filter results */
-				function (p, v) { //alert(JSON.stringify(v)); 
-					alert(JSON.stringify(v))
-					++p.count;
-					p.total += +v.total;
-					p.type = v.type;
-					p.context = v.context;
-				    /*p.phase = v.phase;
-				    
-				    p.group = v.group;*/
+		// phase
+		phaseDim = ndx.dimension(function (d) { return +d.phase; }),
+		actionsPerPhase = phaseDim.group().reduceSum(function (d) { return +d.total; }),
 
-					return p;
-				},
-				/* callback for when data is removed from the current filter results */
-				function (p, v) {
-					--p.count;
-					p.total -= v.total;//v.bubble;
-					p.context = '';
-					p.type = '';
-				    /*p.phase = -1;
-				    
-				    p.group = -1;*/
-
-					return p;
-				},
-				// init filter 
-				function () {
-					return { total: 0, count: 0, context: '', type: '' };
-				}
-			)
-			;
-
-
-
-		//		alert(JSON.stringify(mainGroup))
-
-
-		phaseRingChart
-			.title(function (p) {
-				return 'Phase ' + p.key + '\n' + 'Value: ' + p.value;
-			})
-			//.width(window.innerWidth * 0.75)
-			.height(130)
-			.dimension(phaseDim)
-			.group(actionsPerPhase)
-			.innerRadius(30)
-			.colors(d3.scale.ordinal().domain([0]).range(['#e6550d']))
-			;
+		// type
+		typeDim = ndx.dimension(function (d) { return d.type; }),
+		actionsPerType = typeDim.group().reduceSum(function (d) { return +d.total; }),
+		actionsPerType = remove_empty_bins(actionsPerType),
 
 		// group
-		spenderRowChart
-			.margins({ top: 0, right: 5, bottom: 20, left: 2 })
-			.title(function (p) {
-				return 'Group ' + p.key + '\n' + 'Value: ' + p.value;
-			})
-			//.width(450)
-			.height(130)
-			.dimension(groupDim)
-			.group(actionsPerGroup)
-			.elasticX(true)
-			.colors(d3.scale.ordinal().domain([0]).range(['#e6550d']))
-			.xAxis().ticks(3)
-			;
+		groupDim = ndx.dimension(function (d) { return d.group; }),
+		actionsPerGroup = groupDim.group().reduceSum(function (d) { return +d.total; }),
 
-		// context  
-		spenderRowChart2
-			.margins({ top: 0, right: 5, bottom: 20, left: 2 })
-			.title(function (p) {
-				return 'Context ' + p.key + '\n' + 'Value: ' + p.value;
-			})
-			.height(130)
-			.dimension(contextDim)
-			.group(actionsPerContext)
-			.elasticX(true)
-			.colorAccessor(function (d) { return d.key; })
-			.colors(d3.scale.ordinal().domain(context_keys).range(color_range))
-			.xAxis().ticks(3)
-			;
+		// context
+		contextDim = ndx.dimension(function (d) { return d.context; }),
+		actionsPerContext = contextDim.group().reduceSum(function (d) { return +d.total; }),
 
-		//type
-		spenderRowChart3
-			.margins({ top: 0, right: 5, bottom: 20, left: 2 })
-			.title(function (p) {
-				return 'Type ' + p.key + '\n' + 'Value: ' + p.value;
-			})
-			.height(130)
-			.dimension(typeDim)
-			.group(actionsPerType)
-			.elasticX(true)
-			.colors(d3.scale.ordinal().domain(common_types).range(['#e6550d', '#e6550d', '#e6550d', '#e6550d']))
-			.xAxis().ticks(3)
-			;
+		mainDim = ndx.dimension(function (d) {
+			return [d.type, d.context];
+			//return [d.type, d.context, +d.total, d.phase]; 
+		}),
+		mainGroup = mainDim.group().reduceSum(function (d) { return +d.total; }),
 
-		// main chart
-		mainChart
-			.margins({ top: 15, right: 30, bottom: 25, left: 45 })
-			.height(350)
-			.clipPadding(65)
-			.dimension(mainDim)
-			.group(mainGroup)
-			.x(d3.scale.ordinal())
-			.xUnits(dc.units.ordinal)
-			.ordering(function (d) { return -d.value; })
-			.yAxisLabel("Number of events")
-			//.xAxisLabel("Date")
 
-			.colorAccessor(function (d) {
-				return d.key[1];
-			})
-			.colors(d3.scale.ordinal().domain(context_keys).range(color_range))
-			.elasticX(true)
-			.elasticY(true)
-			.title(function (p) {
-				return p.key + '\n' + 'Value: ' + p.value;
-			})
-			.label(function (d) {
-				if (d.data.value > 0) {
-					return d.data.key;//'<span class="l">'+d.data.key+'</span>';
-				}
-			})
-			.on("renderlet.clicki", function (chart) {
-				chart.selectAll('rect').on("click", function (d) {
-					alert('click' + JSON.stringify(d)); console.log("click!", d);
+
+		mainGroup3 = mainDim.group().reduce(
+			/* callback for when data is added to the current filter results */
+			function (p, v) { //alert(JSON.stringify(v)); 
+				alert(JSON.stringify(v))
+				++p.count;
+				p.total += +v.total;
+				p.type = v.type;
+				p.context = v.context;
+				/*p.phase = v.phase;
+			    
+				p.group = v.group;*/
+
+				return p;
+			},
+			/* callback for when data is removed from the current filter results */
+			function (p, v) {
+				--p.count;
+				p.total -= v.total;//v.bubble;
+				p.context = '';
+				p.type = '';
+				/*p.phase = -1;
+			    
+				p.group = -1;*/
+
+				return p;
+			},
+			// init filter 
+			function () {
+				return { total: 0, count: 0, context: '', type: '' };
+			}
+		)
+		;
+
+
+
+	//		alert(JSON.stringify(mainGroup))
+
+
+	phaseRingChart
+		.title(function (p) {
+			return 'Phase ' + p.key + '\n' + 'Value: ' + p.value;
+		})
+		//.width(window.innerWidth * 0.75)
+		.height(130)
+		.dimension(phaseDim)
+		.group(actionsPerPhase)
+		.innerRadius(30)
+		.colors(d3.scale.ordinal().domain([0]).range(['#e6550d']))
+		;
+	observer.register(phaseRingChart)	
+
+	// Group - Groups
+	spenderRowChart
+		.margins({ top: 0, right: 5, bottom: 20, left: 2 })
+		.title(function (p) {
+			return 'Group ' + p.key + '\n' + 'Value: ' + p.value;
+		})
+		//.width(450)
+		.height(130)
+		.dimension(groupDim)
+		.group(actionsPerGroup)
+		.elasticX(true)
+		.colors(d3.scale.ordinal().domain([0]).range(['#e6550d']))
+		.xAxis().ticks(3)
+		;
+	observer.register(spenderRowChart)		
+
+	// Context - Interaction Context  
+	spenderRowChart2
+		.margins({ top: 0, right: 5, bottom: 20, left: 2 })
+		.title(function (p) {
+			return 'Context ' + p.key + '\n' + 'Value: ' + p.value;
+		})
+		.height(130)
+		.dimension(contextDim)
+		.group(actionsPerContext)
+		.elasticX(true)
+		.colorAccessor(function (d) { return d.key; })
+		.colors(d3.scale.ordinal().domain(context_keys).range(color_range))
+		.xAxis().ticks(3)
+		;
+	observer.register(spenderRowChart2)		
+
+	// Type - Common Interactions
+	spenderRowChart3
+		.margins({ top: 0, right: 5, bottom: 20, left: 2 })
+		.title(function (p) {
+			return 'Type ' + p.key + '\n' + 'Value: ' + p.value;
+		})
+		.height(130)
+		.dimension(typeDim)
+		.group(actionsPerType)
+		.elasticX(true)
+		.colors(d3.scale.ordinal().domain(common_types).range(['#e6550d', '#e6550d', '#e6550d', '#e6550d']))
+		.xAxis().ticks(3)
+		;
+	observer.register(spenderRowChart3)	
+
+	// main chart - Playback Interactions
+	observer.register(mainChart);
+	mainChart
+		.margins({ top: 15, right: 30, bottom: 25, left: 45 })
+		.height(350)
+		.width(width)	// sg neu - aber besser dynamisch!!!
+		.clipPadding(65)
+		.dimension(mainDim)
+		.group(mainGroup)
+		.x(d3.scale.ordinal())
+		.xUnits(dc.units.ordinal)
+		.ordering(function (d) { return -d.value; })
+		.yAxisLabel("Number of events")
+		//.xAxisLabel("Date")
+
+		.colorAccessor(function (d) { return d.key[1]; })
+		.colors(d3.scale.ordinal().domain(context_keys).range(color_range))
+		.elasticX(true)
+		.elasticY(true)
+		.title(function (p) {
+			return p.key + '\n' + 'Value: ' + p.value;
+		})
+		/*.label(function (d) {
+			if (d.data.value > 0) {
+				return d.data.key;//'<span class="l">'+d.data.key+'</span>';
+			}
+		})*/
+		.on("renderlet.click", function (chart) {
+			chart.selectAll('rect').on("click", function (d) {
+				alert('click' + JSON.stringify(d)); console.log("click!", d);
+			});
+		})
+		/*
+		.on('renderlet', function (chart) {
+			var text = chart.selectAll('rect.bar');
+			text.enter().append('text').text('Hello');
+		})*/
+		.renderlet(function (chart) {
+			chart.selectAll('g.stack').each(function (parentDatum) {
+				d3.select(this).selectAll('.bar').each(function (childDatum) {
+					var el = this;
+					d3.select(el.parentNode)
+						.insert("g")
+						.attr("class", "wrapped")
+						//.attr("transform", "translate(" + el.select(this).attr('x') + "," + el.select(this).attr('y') + ")")
+						.append(function () { return el; });
 				});
-			})
+			}); 
+			chart.selectAll(".wrapped")//.select(this.parentNode)
+				.append("text")
+				.attr("class", "cust-label")
+				.attr("alignment-baseline", "baseline")
+				.attr("transform", function(d){ //console.log(d)
+					"translate(" + 100 + "," + (chart.height()-52) + ")"
+				})
+				.text(function (d) { return 'hello'; })
+				;
+				
+		})
+		;
+
+
+
+	mainChart.xAxis().tickFormat(function (d) { return '' }); // convert back to base unit
+	mainChart.yAxis().ticks(5);
+
+	
+	dc.renderAll();
+	
+	/**
+	 *  
+	 */
+	let updateSize = function(e){ 
+		mainChart
+			.width(document.getElementById('main-chart').offsetWidth)
+			.transitionDuration(50)
 			;
-
-		mainChart.xAxis().tickFormat(function (d) { return '' }); // convert back to base unit
-		mainChart.yAxis().ticks(5);
-
-
 		dc.renderAll();
-	</script>
+	};
+
+	// ensure to use the available space
+	setTimeout(updateSize, 1000);
+	window.onresize = function (e) { updateSize(e); }
+</script>
 
 
-	<% include footer %>
+<% include footer %>

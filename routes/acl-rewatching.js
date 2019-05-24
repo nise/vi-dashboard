@@ -49,18 +49,31 @@ module.exports = function (app, database) {
     /*
      *
      */
-    app.get('/cached/data/rewatching/group/:group/video/:video', function (req, res) {
-        console.log('group', req.params.group)
+    //     app.get('/cached/data/rewatching/group/:group/video/:video', function (req, res) {
+    app.get('/cached/data/rewatching/group/:group', function (req, res) {
+        console.log('req.params.group: ', req.params.group); // -> 97
         var hrstart = process.hrtime();
         var match_query = {};
         match_query.playback_time = { '$ne': 0 }
-        if (req.params.video !== undefined) {
-            match_query.video_file = req.params.video;
-        }
+        // sg - keine Eingrenzung auf best. Video
+        // if (req.params.video !== undefined) {
+        //     match_query.video_file = req.params.video;
+        // }
         if (req.params.group !== undefined) {
             match_query.group = parseInt(req.params.group, 10);
         }
-        //console.log(match_query)
+        
+        console.log("match_query rewatching: ", match_query)
+        // {   playback_time: { '$ne': 0 },     // größer 0
+        //     video_file:     'e2script_lecture1_improved.mp4',
+        //     group:          97 
+        // }
+        // TEST-QUERY
+        // match_query = { playback_time: { '$ne': 0 }, group: 97,  user: 6,  video_file: "e2script_lecture4_improved.mp4" };
+        // match_query = { playback_time: { '$ne': 0 }, group: 101, user: 16, video_file: "e2script_lecture4_improved.mp4" };
+        // match_query = { playback_time: { '$ne': 0 }, video_file: "e2script_lecture1_improved.mp4" };
+        
+        
         LogExt2
             .aggregate([
                 { "$match": match_query },
@@ -70,7 +83,6 @@ module.exports = function (app, database) {
                             "v": "$video_file",
                             "u": "$user",
                             "g": "$group"
-
                         },
                         "a": {
                             "$push": {
@@ -97,8 +109,21 @@ module.exports = function (app, database) {
                     console.log(err);
                 }
                 // save to cache
+                // console.log("data_aus_db_query: ", data[0]);
+                // data_aus_db_query:  { 
+                //        a: [ 
+                //              { t: 11, c: 'player', p: 3, d: 332 },
+                //              { t: 11, c: 'player', p: 2, d: 332 },
+                //              { t: 11, c: 'player', p: 4, d: 332 },
+                //              { t: 11, c: 'player', p: 1, d: 332 } 
+                //            ],
+                //        v: 'e2script_lecture5_improved.mp4',
+                //        u: 6,
+                //        g: 97 }
+                 
                 var c = new Cache({ query: req._parsedUrl.path, data: data });
                 c.save();
+                // json with padding - request fles using script tag instead XHR
                 res.jsonp({
                     data: data,
                     metrics: {

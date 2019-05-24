@@ -28,6 +28,12 @@ module.exports = function (app, database) {
 			groups: LogExt2.find().distinct('group').execAsync(),
 			videos: LogExt2.find().distinct('video_file').execAsync()
 		}).then(function (results) {
+			console.log("groups: ", results.groups); 
+			// sg -> [0] 
+			// [ { g: 0, d: '2016-9-9', sum: 136 },
+  		// 	{ g: 0, d: '2016-9-8', sum: 121 },
+			// 	...
+			// ]	
 			res.render('chartPlaybackPeaks', {
 				menu: menu,
 				videos: results.videos.sort(),
@@ -36,7 +42,7 @@ module.exports = function (app, database) {
 			});
 		}).catch(function (err) {
 			console.log(err)
-			res.send(500); // oops - we're even handling errors!
+			res.sendStatus(500); // oops - we're even handling errors!
 		});
 	});
 
@@ -44,10 +50,11 @@ module.exports = function (app, database) {
 	/*
 	 * Obtain data for peak chart
 	 * */
+	// VIDEO
 	app.get('/data/playback-total-peaks/video/:video/group/:group', function (req, res) {
 		var hrstart = process.hrtime();
 		var match_query = {};
-		match_query.action_type = 'playback';
+		//match_query.action_type = 'playback'; // gibt es im Datensatz IWRM nicht!!!
 		if (req.params.video !== undefined) {
 			match_query.video_file = req.params.video;
 		}
@@ -56,48 +63,60 @@ module.exports = function (app, database) {
 			groups = groups.map(function (x) { return parseInt(x, 10); });
 			match_query.group = { "$in": groups };
 		}
-		//console.log(match_query);
+		console.log("obtainDataVideo_match_query: ", match_query); //-> { action_type: 'playback', video_file: 'abebe' }
 
 		Promise.props({
 			signals: LogExt2
 				.aggregate([
 					{ "$match": match_query },
-					{ $sort: { 'playback_time': -1 } },
-					{
-						"$group":
-						{
-							"_id": {
-								"segment": "$playback_time",
-							},
+					{ "$sort": { 'playback_time': -1 } },  // sg -> $sort: ...
+					{ "$group": {
+							"_id": { "segment": "$playback_time" },
 							"sum": { "$sum": 1 }
 						}
 					},
-					{
-						"$project": {
+					{ "$project": {
 							'_id': 0,
 							'count': '$sum'
 						}
 					},
-					{ '$group': { "_id": null, "signal": { $push: "$count" } } },
-					{ '$project': { '_id': 0, 'signal': 1 } }
+					{ '$group': { 
+							"_id": null, 
+							"signal": { $push: "$count" } 
+						} 
+					},
+					{ '$project': { 
+							'_id': 0, 
+							'signal': 1 
+						} }
 				]).execAsync()
 		}).then(function (result) {
-			var video_meta = require('/home/abb/Documents/www2/vi-dashboard/import_data/etutor2015-videos.json');
+
+			console.log("obtainData result: ", result); // sg -> { signals: [] }
+			console.log("obtainData erster Eintrag: ", result.signals[0].signal[0]);
+			console.log("--------------------------------------------------------");
+
+			// sg vorher -> var video_meta = require('/home/abb/Documents/www2/vi-dashboard/import_data/etutor2015-videos.json');
+			var video_meta = require('../import_data/etutor2015-videos.json');
 			
 			var video = '', markers = {};
 			for (var i = 0, len = video_meta.length; i < len; i++) { 
 				video = video_meta[i].video.replace('http://141.46.8.101/beta/e2script/','');
 				markers[video] = [];
+
+				//sg slides
 				if (video_meta[i].slides !== undefined) {
 					for (var j = 0, len2 = video_meta[i].slides.length; j < len2; j++) {
 						markers[video].push({type:'slide', group: i%3, time: video_meta[i].slides[j].starttime });
 					}
 				}
+				//sg assessment
 				if (video_meta[i].assessment !== undefined) {
 					for (var j = 0, len2 = video_meta[i].assessment.length; j < len2; j++) {
 						markers[video].push({type:'assessment', group: i%3, time: video_meta[i].assessment[j].starttime });
 					}
 				}
+				//sg comments
 				if (video_meta[i].comments !== undefined && video_meta[i].comments !== null) {
 					for (var j = 0, len2 = video_meta[i].comments.length; j < len2; j++) {
 						markers[video].push({type:'comment', group: i%3, time: video_meta[i].comments[j].start });
@@ -105,7 +124,10 @@ module.exports = function (app, database) {
 				}
 			}
 			
-			var results = { signal: result.signals[0].signal, unique: 0, markers: markers };
+			var results = { signal: result.signals[0].signal, 
+											unique: 0, 
+											markers: markers 
+										};
 			res.jsonp({
 				data: results,
 				metrics: {
@@ -117,11 +139,11 @@ module.exports = function (app, database) {
 			});
 		}).catch(function (err) {
 			console.log(err)
-			res.send(500); // oops - we're even handling errors!
+			res.sendStatus(500); // oops - we're even handling errors! //sg res.send(status) deprecated
 		});
 	});
 
-
+	// SCOPE USER rel/abs
 	app.get('/data/playback-user-peaks/video/:video/group/:group', function (req, res) {
 		var hrstart = process.hrtime();
 		var match_query = {};
@@ -159,13 +181,13 @@ module.exports = function (app, database) {
 						}
 					},
 					{ '$group': { "_id": null, "signal": { $push: "$user" } } },
-					{ '$project': { '_id': 0, 'signal': 1 } }
-
+					{ '$project': { '_id': 0, 'signal': 1 } 
+					}
 				]).execAsync()
 		}).then(function (result) {
-			//console.log(result.users);
 
-			var results = { signal: result.signals[0].signal, unique: result.users.length };
+			var results = { signal: result.signals[0].signal, 
+											unique: result.users.length };
 			res.jsonp({
 				data: results,
 				metrics: {
@@ -176,11 +198,11 @@ module.exports = function (app, database) {
 			});
 		}).catch(function (err) {
 			console.log(err)
-			res.send(500); // oops - we're even handling errors!
+			res.sendStatus(500); // oops - we're even handling errors!
 		});
 	});
 
-
+	// SCOPE GROUP
 	app.get('/data/playback-group-peaks/video/:video/group/:group', function (req, res) {
 		var hrstart = process.hrtime();
 		var match_query = {};
@@ -236,7 +258,7 @@ module.exports = function (app, database) {
 	});
 
 	/**
-	 *  Playback speed
+	 *  Chart Playback speed
 	 */
 	app.get('/data/playback-speed/video/:video/group/:group', function (req, res) {
 		var hrstart = process.hrtime();
@@ -283,7 +305,7 @@ module.exports = function (app, database) {
 			res.jsonp({ signal: data.signals[0].signal });
 		}).catch(function (err) {
 			console.log(err)
-			res.send(500); // oops - we're even handling errors!
+			res.sendStatus(500); // oops - we're even handling errors!
 		});
 	});
 }
