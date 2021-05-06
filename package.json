@@ -37,7 +37,7 @@
     "node-fs": "^0.1.7",
     "object-sizeof": "^1.2.0",
     "sizeof": "^1.0.0",
-    "ua-parser-js": "^0.7.17",
+    "ua-parser-js": "^0.7.24",
     "winston": "^3.0.0"
   },
   "engines": {
