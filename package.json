@@ -31,7 +31,7 @@
     "ipware": "*",
     "markov-chains": "^1.0.2",
     "method-override": "^2.3.10",
-    "moment": "^2.20.1",
+    "moment": "^2.29.2",
     "mongodb": "^2.2.34",
     "mongoose": "^4.13.10",
     "node-fs": "^0.1.7",
