@@ -18,7 +18,7 @@
     "ejs-locals": "*",
     "errorhandler": "^1.4.3",
     "event-stream": "^3.3.4",
-    "express": "^4.16.2",
+    "express": "^4.17.3",
     "express-json": "*",
     "express-logger": "0.0.3",
     "express-metrics": "^1.1.0",
